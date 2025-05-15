@@ -1,71 +1,75 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import adminAxiosInstance from "../../services/adminAxiosInstance"
-import { FiEdit2, FiTrash2, FiSearch, FiPlus } from "react-icons/fi"
+import { useState, useEffect } from "react";
+import adminAxiosInstance from "../../services/adminAxiosInstance";
+import { FiSearch } from "react-icons/fi";
 
 interface Receptionist {
-  _id: string
-  name: string
-  email: string
-  phone: string
-  isAdminVerified: boolean
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  isAdminVerified: boolean;
 }
 
 const ReceptionistList = () => {
-  const [receptionists, setReceptionists] = useState<Receptionist[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [receptionists, setReceptionists] = useState<Receptionist[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     const fetchReceptionists = async () => {
       try {
-        setLoading(true)
-        const response = await adminAxiosInstance.get("/receptionists")
+        setLoading(true);
+        const response = await adminAxiosInstance.get("/receptionists");
         if (response.data.status) {
-          setReceptionists(response.data.data)
+          setReceptionists(response.data.data);
         } else {
-          setError("Failed to fetch receptionists")
+          setError("Failed to fetch receptionists");
         }
       } catch (error) {
-        setError("An error occurred while fetching receptionists")
-        console.error("Error fetching receptionists:", error)
+        setError("An error occurred while fetching receptionists");
+        console.error("Error fetching receptionists:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchReceptionists()
-  }, [])
+    fetchReceptionists();
+  }, []);
 
   const filteredReceptionists = receptionists.filter(
     (receptionist) =>
       receptionist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       receptionist.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      receptionist.phone.includes(searchQuery),
-  )
+      receptionist.phone.includes(searchQuery)
+  );
 
-  const handleDelete = async (id: string) => {
-    // This would be implemented to connect to your delete API endpoint
-    if (window.confirm("Are you sure you want to delete this receptionist?")) {
-      try {
-        // Implement delete API call here
-        // const response = await adminAxiosInstance.delete(`/receptionists/${id}`);
-        // if (response.data.status) {
-        setReceptionists(receptionists.filter((r) => r._id !== id))
-        // }
-      } catch (error) {
-        console.error("Error deleting receptionist:", error)
-      }
+const handleToggleVerification = async (id: string) => {
+  try {
+    const response = await adminAxiosInstance.patch(`/receptionists/${id}/toggle`);
+    if (response.data.status) {
+      const updated = response.data.data;
+      setReceptionists((prev) =>
+        prev.map((r) => (r._id === id ? { ...r, isAdminVerified: updated.isAdminVerified } : r))
+      );
     }
+  } catch (err) {
+    console.error("Failed to toggle status", err);
   }
+};
+;
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Receptionist Management</h1>
-        <p className="text-gray-600">Add, edit, and manage receptionist information</p>
+        <h1 className="text-2xl font-bold text-gray-800">
+          Receptionist Management
+        </h1>
+        <p className="text-gray-600">
+          Manage receptionist information
+        </p>
       </div>
 
       <div className="flex justify-between items-center mb-6">
@@ -81,10 +85,6 @@ const ReceptionistList = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <button className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-          <FiPlus className="text-white" />
-          Add Receptionist
-        </button>
       </div>
 
       {loading ? (
@@ -92,7 +92,10 @@ const ReceptionistList = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : error ? (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+          role="alert"
+        >
           <span className="block sm:inline">{error}</span>
         </div>
       ) : (
@@ -146,38 +149,50 @@ const ReceptionistList = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         RC{String(index + 1).padStart(4, "0")}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{receptionist.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{receptionist.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{receptionist.phone}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {receptionist.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {receptionist.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {receptionist.phone}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             receptionist.isAdminVerified
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
+                              ? "bg-gray-200 text-gray-800"
+                              : "bg-green-200 text-green-800"
                           }`}
                         >
                           {receptionist.isAdminVerified ? "Active" : "Pending"}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button className="text-blue-600 hover:text-blue-900">
-                            <FiEdit2 className="h-5 w-5" />
-                          </button>
-                          <button
-                            className="text-red-600 hover:text-red-900"
-                            onClick={() => handleDelete(receptionist._id)}
-                          >
-                            <FiTrash2 className="h-5 w-5" />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() =>
+                            handleToggleVerification(receptionist._id)
+                          }
+                          className={`text-sm font-semibold px-3 py-1 rounded-full transition ${
+                            receptionist.isAdminVerified
+                              ? "bg-green-200 text-green-800 hover:bg-green-300"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
+                        >
+                          {receptionist.isAdminVerified
+                            ? "Unapprove"
+                            : "Approve"}
+                        </button>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td
+                      colSpan={6}
+                      className="px-6 py-4 text-center text-sm text-gray-500"
+                    >
                       No receptionists found
                     </td>
                   </tr>
@@ -190,12 +205,21 @@ const ReceptionistList = () => {
               <div>
                 <p className="text-sm text-gray-700">
                   Showing <span className="font-medium">1</span> to{" "}
-                  <span className="font-medium">{filteredReceptionists.length}</span> of{" "}
-                  <span className="font-medium">{filteredReceptionists.length}</span> results
+                  <span className="font-medium">
+                    {filteredReceptionists.length}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-medium">
+                    {filteredReceptionists.length}
+                  </span>{" "}
+                  results
                 </p>
               </div>
               <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <nav
+                  className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                  aria-label="Pagination"
+                >
                   <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                     <span className="sr-only">Previous</span>
                     &larr;
@@ -214,7 +238,7 @@ const ReceptionistList = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default ReceptionistList
+export default ReceptionistList;

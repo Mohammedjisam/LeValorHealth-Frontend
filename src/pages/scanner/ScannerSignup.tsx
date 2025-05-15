@@ -31,11 +31,12 @@ const Signup: React.FC = () => {
       await authAxiosInstance.post("/register", {
         name,
         email,
+        phone,
         password,
-        role: "receptionist",
+        role: "PrescriptionDataEntryOperator",
       });
 
-      navigate("/login");
+      navigate("/scanner");
     } catch (err: any) {
       const message =
         err.response?.data?.message || "Registration failed. Try again.";
