@@ -4,6 +4,7 @@ import Dashboard from "../pages/admin/Dashboard";
 import AdminLayout from "../components/admin/AdminLayout";
 import ReceptionistList from "../pages/admin/ReceptionistList";
 import PdeoList from "../pages/admin/PdeoList";
+import DoctorList from "../pages/admin/DoctorList";
 
 function AdminRoutes() {
   return (
@@ -13,7 +14,8 @@ function AdminRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
          <Route path="receptionist" element={<ReceptionistList />} />
          <Route path="pdeo" element={<PdeoList/>} />
-        {/* <Route path="doctors" element={<DoctorList />} />
+         <Route path="doctors" element={<DoctorList />} />
+        {/* 
         <Route path="patients" element={<PatientList />} />
        
          */}
