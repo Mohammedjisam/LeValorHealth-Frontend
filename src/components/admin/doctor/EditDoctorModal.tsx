@@ -18,6 +18,8 @@ interface Doctor {
   phone: string
   email: string
   status: boolean
+  consultationFees: number;
+
 }
 
 interface EditDoctorModalProps {
@@ -37,6 +39,7 @@ interface FormData {
   phone: string
   email: string
   status: boolean
+  consultationFees: number
 }
 
 const EditDoctorModal = ({ isOpen, doctor, onClose, onSuccess }: EditDoctorModalProps) => {
@@ -50,6 +53,9 @@ const EditDoctorModal = ({ isOpen, doctor, onClose, onSuccess }: EditDoctorModal
     phone: doctor.phone,
     email: doctor.email,
     status: doctor.status,
+    consultationFees: doctor.consultationFees,
+
+
   })
 
   const [errors, setErrors] = useState<Partial<FormData>>({})
@@ -67,6 +73,8 @@ const EditDoctorModal = ({ isOpen, doctor, onClose, onSuccess }: EditDoctorModal
       phone: doctor.phone,
       email: doctor.email,
       status: doctor.status,
+            consultationFees: doctor.consultationFees
+
     })
   }, [doctor])
 
@@ -86,6 +94,8 @@ const EditDoctorModal = ({ isOpen, doctor, onClose, onSuccess }: EditDoctorModal
     }
 
     if (!formData.age || formData.age < 18) newErrors.age = "Age must be at least 18"
+        if (formData.consultationFees < 0) newErrors.consultationFees = "Fees cannot be negative";
+
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -301,7 +311,24 @@ const EditDoctorModal = ({ isOpen, doctor, onClose, onSuccess }: EditDoctorModal
                   <option value="false">On Leave</option>
                 </select>
               </div>
+               <div className="col-span-1">
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Consultation Fees
+                </label>
+                <input
+                  type="text"
+                  name="consultationFees"
+                  id="consultationFees"
+                  placeholder="₹200"
+                  value={formData.consultationFees}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border ${errors.consultationFees ? "border-red-300" : "border-gray-300"} rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                />
+                {errors.consultationFees && <p className="mt-1 text-xs text-red-600">{errors.consultationFees}</p>}
+              </div>
+
             </div>
+            
 
             <div className="mt-6 flex justify-end space-x-3">
               <button

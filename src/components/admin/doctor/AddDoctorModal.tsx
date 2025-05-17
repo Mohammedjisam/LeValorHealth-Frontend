@@ -21,6 +21,8 @@ interface FormData {
   age: number
   phone: string
   email: string
+    consultationFees: number
+
 }
 
 const AddDoctorModal = ({ isOpen, onClose, onSuccess }: AddDoctorModalProps) => {
@@ -33,6 +35,8 @@ const AddDoctorModal = ({ isOpen, onClose, onSuccess }: AddDoctorModalProps) => 
     age: 35,
     phone: "",
     email: "",
+      consultationFees: "",
+
   })
 
   const [errors, setErrors] = useState<Partial<FormData>>({})
@@ -55,6 +59,8 @@ const AddDoctorModal = ({ isOpen, onClose, onSuccess }: AddDoctorModalProps) => 
     }
 
     if (!formData.age || formData.age < 18) newErrors.age = "Age must be at least 18"
+            if (formData.consultationFees < 0) newErrors.consultationFees = "Fees cannot be negative";
+
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -275,7 +281,21 @@ const handleSubmit = async (e: FormEvent) => {
                 {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
               </div>
 
-            
+             <div className="col-span-1">
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Consultation Fees
+                </label>
+                <input
+                  type="text"
+                  name="consultationFees"
+                  id="consultationFees"
+                  placeholder="₹200"
+                  value={formData.consultationFees}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-2 border ${errors.consultationFees ? "border-red-300" : "border-gray-300"} rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                />
+                {errors.consultationFees && <p className="mt-1 text-xs text-red-600">{errors.consultationFees}</p>}
+              </div>
             
             </div>
 

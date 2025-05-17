@@ -15,6 +15,7 @@ interface Doctor {
   age: number;
   phone: string;
   email: string;
+  consultationFees: number;
   photo?: string;
   status: boolean;
 }
@@ -133,6 +134,7 @@ const DoctorList = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Specialization</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fees</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -141,19 +143,11 @@ const DoctorList = () => {
                 {currentDoctors.length > 0 ? (
                   currentDoctors.map((doctor) => (
                     <tr key={doctor._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {doctor.registerNumber}
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{doctor.registerNumber}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            {doctor.photo ? (
-                              <img className="h-10 w-10 rounded-full object-cover" src={doctor.photo || "/placeholder.svg"} alt={doctor.name} />
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                <span className="text-gray-500 font-medium">{doctor.name.charAt(0)}</span>
-                              </div>
-                            )}
+                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            <span className="text-gray-500 font-medium">{doctor.name.charAt(0)}</span>
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">Dr. {doctor.name}</div>
@@ -164,8 +158,9 @@ const DoctorList = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doctor.specialization}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doctor.department}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doctor.phone}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₹{doctor.consultationFees}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${doctor.status ? "bg-green-100 text-green-800" : "bg-pink-100 text-pink-800"}`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${doctor.status ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
                           {doctor.status ? "Active" : "On Leave"}
                         </span>
                       </td>
@@ -180,9 +175,7 @@ const DoctorList = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                      No doctors found
-                    </td>
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">No doctors found</td>
                   </tr>
                 )}
               </tbody>
