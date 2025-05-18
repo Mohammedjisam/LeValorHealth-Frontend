@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
+        "jsx": "preserve", // or "react-jsx" for React 17+
+
     "paths": {
       "@/*": ["src/*"]
     }
