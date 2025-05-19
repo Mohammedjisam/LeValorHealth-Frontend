@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useTheme } from "../../components/theme-provider";
-
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -156,24 +156,40 @@ export default function PatientRegistrationPage() {
     }
   };
 
-  // Handle form submission
-  const onSubmit = async (values: FormValues) => {
-    setLoading(true);
+const onSubmit = async (values: FormValues) => {
+  setLoading(true);
 
-    try {
-      const response = await receptionistAxiosInstance.post(
-        "/patients/add",
-        values
-      );
-      if (response.data.status && response.data.data) {
-        setRegisteredPatient(response.data.data);
-      }
-    } catch (error) {
-      console.error("Failed to register patient:", error);
-    } finally {
-      setLoading(false);
+  try {
+    const response = await receptionistAxiosInstance.post("/patients/add", values);
+
+    if (response.data.status && response.data.data) {
+      setRegisteredPatient(response.data.data);
+
+      // ✅ Show toast
+      toast.success("Patient registered successfully");
+
+      // ✅ Reset the form
+      form.reset({
+        name: "",
+        sex: undefined,
+        age: undefined,
+        homeName: "",
+        place: "",
+        phone: "",
+        date: new Date(),
+        renewalDate: new Date(new Date().setDate(new Date().getDate() + 7)),
+        doctorId: "",
+        department: "",
+        consultationFees: 0,
+      });
     }
-  };
+  } catch (error) {
+    console.error("Failed to register patient:", error);
+    toast.error("Failed to register patient");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     if (registeredPatient && printRef.current) {

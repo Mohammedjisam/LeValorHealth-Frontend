@@ -30,7 +30,7 @@ const PatientSearch: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query)
-    }, 500)
+    }, 20)
     return () => clearTimeout(timer)
   }, [query])
 
