@@ -9,6 +9,8 @@ import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip"
+import { useNavigate } from "react-router-dom" 
+
 
 interface Patient {
   _id: string
@@ -26,6 +28,8 @@ const PatientSearch: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [debouncedQuery, setDebouncedQuery] = useState<string>("")
+  const navigate = useNavigate()
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -60,20 +64,8 @@ const PatientSearch: React.FC = () => {
     fetchPatients()
   }, [debouncedQuery])
 
-const handleViewDetails = async (patientId: string) => {
-  try {
-    const res = await receptionistAxiosInstance.get(`/patients/${patientId}`)
-    if (res.data.status) {
-      console.log("Patient details:", res.data.data)
-      // You can replace this with a modal or route later
-      alert(`Name: ${res.data.data.name}\nDoctor: ${res.data.data.doctor?.name || "-"}`)
-    } else {
-      alert("Patient not found")
-    }
-  } catch (err) {
-    console.error("Failed to fetch patient details", err)
-    alert("Error fetching patient details")
-  }
+const handleViewDetails = (patientId: string) => {
+  navigate(`/viewdetails/${patientId}`)
 }
 
 

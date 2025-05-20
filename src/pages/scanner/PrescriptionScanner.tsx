@@ -1,14 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Search, Clock, Filter } from "lucide-react"
+import type React from "react"
+
+import { useEffect, useState, useRef } from "react"
+import { Search, Clock, Filter, Camera, Upload, X } from "lucide-react"
 import { Input } from "../../components/ui/input"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent } from "../../components/ui/card"
 import { Badge } from "../../components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "../../components/ui/dialog"
 import { format } from "date-fns"
 import scannerAxiosInstance from "../../services/scannerAxiosInstance"
+import receptionistAxiosInstance from "../../services/receptionistAxiosInstance"
 
 interface Patient {
   _id: string
@@ -21,6 +25,15 @@ interface Patient {
   prescriptionAdded: "added" | "pending"
 }
 
+interface PatientDetails extends Patient {
+  age?: number
+  sex?: string
+  homeName?: string
+  department?: string
+  consultationFees?: number
+  renewalDate?: string
+}
+
 const PrescriptionScanner = () => {
   const [pendingPatients, setPendingPatients] = useState<Patient[]>([])
   const [allPatients, setAllPatients] = useState<Patient[]>([])
@@ -30,27 +43,43 @@ const PrescriptionScanner = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("pending")
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery)
 
-useEffect(() => {
-  const fetchPendingPrescriptions = async () => {
-    try {
-      setLoading(true);
-      const response = await scannerAxiosInstance.get("/pending-patients");
+  // Modal states
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState<PatientDetails | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [prescriptionImage, setPrescriptionImage] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
 
-      if (response.data.status) {
-        setPendingPatients(response.data.data);
-        setFilteredPendingPatients(response.data.data);
-        setPendingCount(response.data.data.length);
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  useEffect(() => {
+    const fetchPendingPrescriptions = async () => {
+      try {
+        setLoading(true)
+        const response = await scannerAxiosInstance.get("/pending-patients")
+
+        if (response.data.status) {
+          setPendingPatients(response.data.data)
+          setFilteredPendingPatients(response.data.data)
+          setPendingCount(response.data.data.length)
+        }
+      } catch (error) {
+        console.error("Error fetching pending prescriptions:", error)
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      console.error("Error fetching pending prescriptions:", error);
-    } finally {
-      setLoading(false);
     }
-  };
 
-  fetchPendingPrescriptions();
-}, []);
+    fetchPendingPrescriptions()
+  }, [])
 
   useEffect(() => {
     if (activeTab === "all") {
@@ -58,55 +87,74 @@ useEffect(() => {
     }
   }, [activeTab])
 
-const fetchAllPatients = async () => {
-  try {
-    setLoading(true);
-    const response = await scannerAxiosInstance.get("/all-patients");
+  const fetchAllPatients = async () => {
+    try {
+      setLoading(true)
+      const response = await scannerAxiosInstance.get("/all-patients")
 
-    if (response.data.status) {
-      setAllPatients(response.data.data);
-      setFilteredAllPatients(response.data.data);
+      if (response.data.status) {
+        setAllPatients(response.data.data)
+        setFilteredAllPatients(response.data.data)
+      }
+    } catch (error) {
+      console.error("Error fetching all patients:", error)
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error("Error fetching all patients:", error);
-  } finally {
-    setLoading(false);
   }
-};
 
   useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredPendingPatients(pendingPatients)
-      setFilteredAllPatients(allPatients)
-      return
+    const timeout = setTimeout(() => {
+      setDebouncedQuery(searchQuery)
+    }, 20)
+
+    return () => clearTimeout(timeout) // cleanup
+  }, [searchQuery])
+
+  useEffect(() => {
+    const fetchFilteredPatients = async () => {
+      if (!debouncedQuery.trim()) {
+        setFilteredPendingPatients(pendingPatients)
+        setFilteredAllPatients(allPatients)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const response = await scannerAxiosInstance.get(`/search`, {
+          params: { query: debouncedQuery },
+        })
+
+        if (response.data.status) {
+          const filtered = response.data.data
+
+          if (activeTab === "pending") {
+            const pendingOnly = filtered.filter((p: Patient) => p.prescriptionAdded === "pending")
+            setFilteredPendingPatients(pendingOnly)
+          } else {
+            setFilteredAllPatients(filtered)
+          }
+        }
+      } catch (error) {
+        console.error("Error filtering patients:", error)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    const query = searchQuery.toLowerCase()
+    fetchFilteredPatients()
+  }, [debouncedQuery, activeTab])
 
-    // Filter pending patients
-    const filteredPending = pendingPatients.filter(
-      (patient) =>
-        patient.opNumber.toLowerCase().includes(query) ||
-        patient.name.toLowerCase().includes(query) ||
-        patient.phone.toLowerCase().includes(query) ||
-        (typeof patient.doctor === "object" && patient.doctor.name.toLowerCase().includes(query)),
-    )
-    setFilteredPendingPatients(filteredPending)
-
-    // Filter all patients
-    const filteredAll = allPatients.filter(
-      (patient) =>
-        patient.opNumber.toLowerCase().includes(query) ||
-        patient.name.toLowerCase().includes(query) ||
-        patient.phone.toLowerCase().includes(query) ||
-        (typeof patient.doctor === "object" && patient.doctor.name.toLowerCase().includes(query)),
-    )
-    setFilteredAllPatients(filteredAll)
-  }, [searchQuery, pendingPatients, allPatients])
-
-  const handleSelect = (patientId: string) => {
-    console.log("Selected patient:", patientId)
-    // Implement your selection logic here
+  const handleSelect = async (patientId: string) => {
+    try {
+      const response = await receptionistAxiosInstance.get(`/patients/${patientId}`)
+      if (response.data.status) {
+        setSelectedPatient(response.data.data)
+        setIsModalOpen(true)
+      }
+    } catch (error) {
+      console.error("Error fetching patient details:", error)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -122,6 +170,155 @@ const fetchAllPatients = async () => {
     setSearchQuery("")
   }
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setPrescriptionImage(file)
+      setPreviewUrl(URL.createObjectURL(file))
+      setIsCameraOpen(false)
+    }
+  }
+const handleOpenCamera = () => {
+  setIsCameraOpen(true)
+}
+
+useEffect(() => {
+  const startCamera = async () => {
+    if (!isCameraOpen || !videoRef.current) return
+
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop())
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      streamRef.current = stream
+
+      videoRef.current.srcObject = stream
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play()
+      }
+    } catch (error) {
+      console.error("Error accessing camera:", error)
+    }
+  }
+
+  startCamera()
+}, [isCameraOpen])
+
+
+
+  const handleCapturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+
+      // Draw the current video frame on the canvas
+      const context = canvas.getContext("2d")
+      if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+        // Convert canvas to blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const file = new File([blob], "prescription.jpg", { type: "image/jpeg" })
+              setPrescriptionImage(file)
+              setPreviewUrl(URL.createObjectURL(blob))
+
+              // Stop the camera stream
+              if (streamRef.current) {
+                streamRef.current.getTracks().forEach((track) => track.stop())
+                streamRef.current = null
+              }
+
+              setIsCameraOpen(false)
+            }
+          },
+          "image/jpeg",
+          0.95,
+        )
+      }
+    }
+  }
+
+  const handleCloseCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    setIsCameraOpen(false)
+  }
+
+  const handleAddPrescription = async () => {
+    if (!prescriptionImage || !selectedPatient) return
+
+    try {
+      setIsUploading(true)
+
+      // Create form data for file upload
+      const formData = new FormData()
+      formData.append("prescription", prescriptionImage)
+      formData.append("patientId", selectedPatient._id)
+
+      // Upload prescription to S3 and update database
+      const response = await scannerAxiosInstance.post("/upload-prescription", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+
+      if (response.data.status) {
+        setUploadSuccess(true)
+
+        // Update local state to reflect the change
+        if (activeTab === "pending") {
+          setPendingPatients((prev) => prev.filter((p) => p._id !== selectedPatient._id))
+          setFilteredPendingPatients((prev) => prev.filter((p) => p._id !== selectedPatient._id))
+          setPendingCount((prev) => prev - 1)
+        }
+
+        // Update the patient status in the all patients list
+        const updatedAllPatients = allPatients.map((p) =>
+          p._id === selectedPatient._id ? { ...p, prescriptionAdded: "added" } : p,
+        )
+        setAllPatients(updatedAllPatients)
+        setFilteredAllPatients(updatedAllPatients)
+
+        // Reset after successful upload
+        setTimeout(() => {
+          setIsModalOpen(false)
+          setPrescriptionImage(null)
+          setPreviewUrl(null)
+          setUploadSuccess(false)
+        }, 2000)
+      }
+    } catch (error) {
+      console.error("Error uploading prescription:", error)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleModalClose = () => {
+    // Clean up resources when modal closes
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+
+    setIsModalOpen(false)
+    setSelectedPatient(null)
+    setPrescriptionImage(null)
+    setPreviewUrl(null)
+    setIsCameraOpen(false)
+    setUploadSuccess(false)
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -130,13 +327,17 @@ const fetchAllPatients = async () => {
           <p className="text-gray-500 text-sm">Upload and manage patient prescriptions.</p>
         </div>
         <div className="flex items-center">
-          <img src="/MALABAR_ACADEMIC_CITY_HOSPITAL_LOGO_page-0001__1_-removebg-preview.png" alt="Malabar Academic City Hospital" className="h-18 mt-5" />
+          <img
+            src="/MALABAR_ACADEMIC_CITY_HOSPITAL_LOGO_page-0001__1_-removebg-preview.png"
+            alt="Malabar Academic City Hospital"
+            className="h-18 mt-5"
+          />
         </div>
       </div>
 
       <Tabs defaultValue="pending" className="w-full" onValueChange={handleTabChange}>
         <div className="flex justify-between items-center mb-4 ">
-          <TabsList className="bg-gray-100 w-2000 h-10">
+          <TabsList className="bg-gray-100 w-2000 h-14">
             <TabsTrigger value="pending" className="data-[state=active]:bg-white">
               <Clock className="h-4 w-4 mr-2" />
               Pending Prescriptions
@@ -149,7 +350,6 @@ const fetchAllPatients = async () => {
               All Prescriptions
             </TabsTrigger>
           </TabsList>
-        
         </div>
 
         <TabsContent value="pending" className="mt-0">
@@ -327,6 +527,126 @@ const fetchAllPatients = async () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Patient Details Modal */}
+      <Dialog open={isModalOpen} onOpenChange={handleModalClose}>
+        <DialogContent className="sm:max-w-md md:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Patient Prescription Upload</DialogTitle>
+          </DialogHeader>
+
+          {selectedPatient && (
+            <div className="space-y-6">
+              {/* Patient Details */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">Patient Details</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-sm text-gray-500">OP Number</p>
+                    <p className="font-medium">{selectedPatient.opNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Name</p>
+                    <p className="font-medium">{selectedPatient.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="font-medium">{selectedPatient.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Doctor</p>
+                    <p className="font-medium">
+                      {typeof selectedPatient.doctor === "object"
+                        ? selectedPatient.doctor.name
+                        : selectedPatient.doctor || "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Camera and Upload Section */}
+              {!previewUrl ? (
+                <div className="flex flex-col space-y-3">
+                  <div className="flex space-x-3">
+                    <Button onClick={handleOpenCamera} className="flex-1" variant="outline">
+                      <Camera className="mr-2 h-4 w-4" />
+                      Open Camera
+                    </Button>
+                    <Button onClick={() => fileInputRef.current?.click()} className="flex-1" variant="outline">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload File
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                  </div>
+
+                  {/* Camera View */}
+                  {isCameraOpen && (
+                    <div className="relative mt-4 border rounded-lg overflow-hidden">
+                     <video
+  ref={videoRef}
+  className="w-full h-64 object-cover bg-black"
+  autoPlay
+  playsInline
+  muted
+/>
+                      <canvas ref={canvasRef} className="hidden" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/50 flex justify-between">
+                        <Button onClick={handleCloseCamera} variant="destructive" size="sm">
+                          <X className="h-4 w-4 mr-1" />
+                          Close
+                        </Button>
+                        <Button onClick={handleCapturePhoto} variant="default" size="sm">
+                          <Camera className="h-4 w-4 mr-1" />
+                          Capture
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="relative border rounded-lg overflow-hidden">
+                    <img
+                      src={previewUrl || "/placeholder.svg"}
+                      alt="Prescription Preview"
+                      className="w-full max-h-64 object-contain"
+                    />
+                    <Button
+                      onClick={() => {
+                        setPreviewUrl(null)
+                        setPrescriptionImage(null)
+                      }}
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <Button onClick={handleAddPrescription} className="w-full" disabled={isUploading || uploadSuccess}>
+                    {isUploading ? "Uploading..." : uploadSuccess ? "Prescription Added!" : "Add Prescription"}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="sm:justify-end">
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Close
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
