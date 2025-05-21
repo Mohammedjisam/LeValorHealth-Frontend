@@ -156,6 +156,27 @@ export default function PatientRegistrationPage() {
     }
   };
 
+const printPDF = async (patientId: string) => {
+  try {
+    const response = await receptionistAxiosInstance.get(
+      `/patients/${patientId}/print-prescription`,
+      { responseType: "blob" }
+    );
+
+    const pdfBlob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(pdfBlob);
+    const printWindow = window.open(url, "_blank");
+
+    if (!printWindow) {
+      toast.error("Popup blocked. Please allow popups to print the prescription.");
+    }
+  } catch (error) {
+    console.error("Failed to fetch prescription PDF:", error);
+    toast.error("Failed to generate prescription.");
+  }
+};
+
+
 const onSubmit = async (values: FormValues) => {
   setLoading(true);
 
@@ -163,27 +184,30 @@ const onSubmit = async (values: FormValues) => {
     const response = await receptionistAxiosInstance.post("/patients/add", values);
 
     if (response.data.status && response.data.data) {
-      setRegisteredPatient(response.data.data);
+  const patient = response.data.data;
+  setRegisteredPatient(patient);
 
-      // ✅ Show toast
-      toast.success("Patient registered successfully");
+  toast.success("Patient registered successfully");
 
-      // ✅ Reset the form
-      form.reset({
-        name: "",
-        sex: undefined,
-        age: undefined,
-        homeName: "",
-        place: "",
-        phone: "",
-        date: new Date(),
-        renewalDate: new Date(new Date().setDate(new Date().getDate() + 7)),
-        doctorId: "",
-        department: "",
-        consultationFees: 0,
-      });
-    }
-  } catch (error) {
+  form.reset({
+    name: "",
+    sex: undefined,
+    age: undefined,
+    homeName: "",
+    place: "",
+    phone: "",
+    date: new Date(),
+    renewalDate: new Date(new Date().setDate(new Date().getDate() + 7)),
+    doctorId: "",
+    department: "",
+    consultationFees: 0,
+  });
+
+  // 🔁 Print prescription
+  printPDF(patient._id);
+}
+  } 
+  catch (error) {
     console.error("Failed to register patient:", error);
     toast.error("Failed to register patient");
   } finally {
