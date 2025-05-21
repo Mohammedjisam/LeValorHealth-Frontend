@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useEffect, useState, useRef } from "react"
-import { Search, Clock, Filter, Camera, Upload, X } from "lucide-react"
+import { Search, Clock, Filter, Camera, Upload, X, Sun, Moon } from "lucide-react"
 import { Input } from "../../components/ui/input"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent } from "../../components/ui/card"
@@ -11,6 +11,7 @@ import { Badge } from "../../components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "../../components/ui/dialog"
 import { format } from "date-fns"
+import { useTheme } from "../../components/theme-provider"
 import scannerAxiosInstance from "../../services/scannerAxiosInstance"
 import receptionistAxiosInstance from "../../services/receptionistAxiosInstance"
 
@@ -35,6 +36,7 @@ interface PatientDetails extends Patient {
 }
 
 const PrescriptionScanner = () => {
+  const { theme, setTheme } = useTheme()
   const [pendingPatients, setPendingPatients] = useState<Patient[]>([])
   const [allPatients, setAllPatients] = useState<Patient[]>([])
   const [filteredPendingPatients, setFilteredPendingPatients] = useState<Patient[]>([])
@@ -178,35 +180,34 @@ const PrescriptionScanner = () => {
       setIsCameraOpen(false)
     }
   }
-const handleOpenCamera = () => {
-  setIsCameraOpen(true)
-}
 
-useEffect(() => {
-  const startCamera = async () => {
-    if (!isCameraOpen || !videoRef.current) return
-
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      streamRef.current = stream
-
-      videoRef.current.srcObject = stream
-      videoRef.current.onloadedmetadata = () => {
-        videoRef.current?.play()
-      }
-    } catch (error) {
-      console.error("Error accessing camera:", error)
-    }
+  const handleOpenCamera = () => {
+    setIsCameraOpen(true)
   }
 
-  startCamera()
-}, [isCameraOpen])
+  useEffect(() => {
+    const startCamera = async () => {
+      if (!isCameraOpen || !videoRef.current) return
 
+      try {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop())
+        }
 
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        streamRef.current = stream
+
+        videoRef.current.srcObject = stream
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play()
+        }
+      } catch (error) {
+        console.error("Error accessing camera:", error)
+      }
+    }
+
+    startCamera()
+  }, [isCameraOpen])
 
   const handleCapturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -260,13 +261,12 @@ useEffect(() => {
     try {
       setIsUploading(true)
 
-      // Create form data for file upload
       const formData = new FormData()
-      formData.append("prescription", prescriptionImage)
+      formData.append("file", prescriptionImage) // ✅ correct field name for multer
       formData.append("patientId", selectedPatient._id)
 
-      // Upload prescription to S3 and update database
-      const response = await scannerAxiosInstance.post("/upload-prescription", formData, {
+      // ✅ correct backend path
+      const response = await scannerAxiosInstance.post("/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -275,21 +275,21 @@ useEffect(() => {
       if (response.data.status) {
         setUploadSuccess(true)
 
-        // Update local state to reflect the change
+        // Remove from pending
         if (activeTab === "pending") {
           setPendingPatients((prev) => prev.filter((p) => p._id !== selectedPatient._id))
           setFilteredPendingPatients((prev) => prev.filter((p) => p._id !== selectedPatient._id))
           setPendingCount((prev) => prev - 1)
         }
 
-        // Update the patient status in the all patients list
+        // Update status in allPatients
         const updatedAllPatients = allPatients.map((p) =>
           p._id === selectedPatient._id ? { ...p, prescriptionAdded: "added" } : p,
         )
         setAllPatients(updatedAllPatients)
         setFilteredAllPatients(updatedAllPatients)
 
-        // Reset after successful upload
+        // Close modal and reset state
         setTimeout(() => {
           setIsModalOpen(false)
           setPrescriptionImage(null)
@@ -323,10 +323,21 @@ useEffect(() => {
     <div className="w-full max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Prescription Scanner</h1>
-          <p className="text-gray-500 text-sm">Upload and manage patient prescriptions.</p>
+          <h1 className="text-2xl font-bold">Prescription Scanner</h1>
+          <p className="text-muted-foreground text-sm">Upload and manage patient prescriptions.</p>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
+          {/* Theme Toggle Button - positioned near the logo */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="rounded-full bg-background/90 backdrop-blur-sm hover:bg-background/70"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-primary" />}
+          </Button>
+
           <img
             src="/MALABAR_ACADEMIC_CITY_HOSPITAL_LOGO_page-0001__1_-removebg-preview.png"
             alt="Malabar Academic City Hospital"
@@ -336,16 +347,16 @@ useEffect(() => {
       </div>
 
       <Tabs defaultValue="pending" className="w-full" onValueChange={handleTabChange}>
-        <div className="flex justify-between items-center mb-4 ">
-          <TabsList className="bg-gray-100 w-2000 h-14">
-            <TabsTrigger value="pending" className="data-[state=active]:bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <TabsList className="bg-muted w-2000 h-14">
+            <TabsTrigger value="pending" className="data-[state=active]:bg-background">
               <Clock className="h-4 w-4 mr-2" />
               Pending Prescriptions
               {pendingCount > 0 && (
                 <Badge className="ml-2 bg-amber-500 hover:bg-amber-500 text-white">{pendingCount}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="all" className="data-[state=active]:bg-white">
+            <TabsTrigger value="all" className="data-[state=active]:bg-background">
               <Filter className="h-4 w-4 mr-2" />
               All Prescriptions
             </TabsTrigger>
@@ -353,32 +364,32 @@ useEffect(() => {
         </div>
 
         <TabsContent value="pending" className="mt-0">
-          <Card className="border-gray-200 shadow-sm">
+          <Card className="border-border shadow-sm">
             <CardContent className="p-0">
               <div className="relative w-full">
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ display: loading ? "flex" : "none" }}
                 >
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
 
                 <div className={loading ? "opacity-50" : ""}>
                   <div className="relative overflow-x-auto rounded-md">
-                    <div className="p-4 border-b border-gray-100">
+                    <div className="p-4 border-b border-border/50">
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           placeholder="Filter pending prescriptions..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 bg-gray-50 border-gray-200"
+                          className="pl-10 bg-muted/50 border-border"
                         />
                       </div>
                     </div>
 
                     <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                      <thead className="text-xs uppercase bg-muted/50">
                         <tr>
                           <th className="px-6 py-3">OP Number</th>
                           <th className="px-6 py-3">Name</th>
@@ -392,14 +403,14 @@ useEffect(() => {
                       <tbody>
                         {filteredPendingPatients.length === 0 && !loading ? (
                           <tr>
-                            <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                            <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                               No pending prescriptions found
                             </td>
                           </tr>
                         ) : (
                           filteredPendingPatients.map((patient) => (
-                            <tr key={patient._id} className="bg-white border-b hover:bg-gray-50">
-                              <td className="px-6 py-4 font-medium text-gray-900">{patient.opNumber}</td>
+                            <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
+                              <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
                               <td className="px-6 py-4">{patient.name}</td>
                               <td className="px-6 py-4">{patient.phone}</td>
                               <td className="px-6 py-4">
@@ -409,7 +420,7 @@ useEffect(() => {
                               <td className="px-6 py-4">
                                 <Badge
                                   variant="outline"
-                                  className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50"
+                                  className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900"
                                 >
                                   Pending
                                 </Badge>
@@ -418,7 +429,7 @@ useEffect(() => {
                                 <Button
                                   onClick={() => handleSelect(patient._id)}
                                   size="sm"
-                                  className="bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md text-sm px-4 py-1.5"
+className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-white dark:text-black dark:hover:bg-gray-200 font-medium rounded-md text-sm px-4 py-1.5"
                                 >
                                   Select
                                 </Button>
@@ -436,32 +447,32 @@ useEffect(() => {
         </TabsContent>
 
         <TabsContent value="all" className="mt-0">
-          <Card className="border-gray-200 shadow-sm">
+          <Card className="border-border shadow-sm">
             <CardContent className="p-0">
               <div className="relative w-full">
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ display: loading ? "flex" : "none" }}
                 >
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
 
                 <div className={loading ? "opacity-50" : ""}>
                   <div className="relative overflow-x-auto rounded-md">
-                    <div className="p-4 border-b border-gray-100">
+                    <div className="p-4 border-b border-border/50">
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           placeholder="Filter all prescriptions..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 bg-gray-50 border-gray-200"
+                          className="pl-10 bg-muted/50 border-border"
                         />
                       </div>
                     </div>
 
                     <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                      <thead className="text-xs uppercase bg-muted/50">
                         <tr>
                           <th className="px-6 py-3">OP Number</th>
                           <th className="px-6 py-3">Name</th>
@@ -475,14 +486,14 @@ useEffect(() => {
                       <tbody>
                         {filteredAllPatients.length === 0 && !loading ? (
                           <tr>
-                            <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                            <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                               No patients found
                             </td>
                           </tr>
                         ) : (
                           filteredAllPatients.map((patient) => (
-                            <tr key={patient._id} className="bg-white border-b hover:bg-gray-50">
-                              <td className="px-6 py-4 font-medium text-gray-900">{patient.opNumber}</td>
+                            <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
+                              <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
                               <td className="px-6 py-4">{patient.name}</td>
                               <td className="px-6 py-4">{patient.phone}</td>
                               <td className="px-6 py-4">
@@ -493,14 +504,14 @@ useEffect(() => {
                                 {patient.prescriptionAdded === "pending" ? (
                                   <Badge
                                     variant="outline"
-                                    className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50"
+                                    className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900"
                                   >
                                     Pending
                                   </Badge>
                                 ) : (
                                   <Badge
                                     variant="outline"
-                                    className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50"
+                                    className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900"
                                   >
                                     Added
                                   </Badge>
@@ -510,7 +521,7 @@ useEffect(() => {
                                 <Button
                                   onClick={() => handleSelect(patient._id)}
                                   size="sm"
-                                  className="bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md text-sm px-4 py-1.5"
+                                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-sm px-4 py-1.5"
                                 >
                                   Select
                                 </Button>
@@ -538,23 +549,23 @@ useEffect(() => {
           {selectedPatient && (
             <div className="space-y-6">
               {/* Patient Details */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-2">Patient Details</h3>
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h3 className="font-medium mb-2">Patient Details</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-sm text-gray-500">OP Number</p>
+                    <p className="text-sm text-muted-foreground">OP Number</p>
                     <p className="font-medium">{selectedPatient.opNumber}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Name</p>
+                    <p className="text-sm text-muted-foreground">Name</p>
                     <p className="font-medium">{selectedPatient.name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="text-sm text-muted-foreground">Phone</p>
                     <p className="font-medium">{selectedPatient.phone}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Doctor</p>
+                    <p className="text-sm text-muted-foreground">Doctor</p>
                     <p className="font-medium">
                       {typeof selectedPatient.doctor === "object"
                         ? selectedPatient.doctor.name
@@ -588,13 +599,7 @@ useEffect(() => {
                   {/* Camera View */}
                   {isCameraOpen && (
                     <div className="relative mt-4 border rounded-lg overflow-hidden">
-                     <video
-  ref={videoRef}
-  className="w-full h-64 object-cover bg-black"
-  autoPlay
-  playsInline
-  muted
-/>
+                      <video ref={videoRef} className="w-full h-64 object-cover bg-black" autoPlay playsInline muted />
                       <canvas ref={canvasRef} className="hidden" />
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/50 flex justify-between">
                         <Button onClick={handleCloseCamera} variant="destructive" size="sm">
