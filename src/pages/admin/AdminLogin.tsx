@@ -16,6 +16,9 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { toast } from "sonner";
+import { useDispatch } from "react-redux";
+import { addAdmin } from "../../redux/slice/AdminSlice";
+
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -26,34 +29,38 @@ const AdminLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const dispatch = useDispatch();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+  setIsLoading(true);
 
-    try {
-      const res = await authAxiosInstance.post("/login", {
-        email,
-        password,
-        role: "admin",
-      });
+  try {
+    const res = await authAxiosInstance.post("/login", {
+      email,
+      password,
+      role: "admin",
+    });
 
-      const { token, user } = res.data;
+    const { token, user } = res.data;
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+    // ✅ Store token
+    localStorage.setItem("token", token);
 
-      toast.success("Welcome, Admin!");
-      navigate("/admin/dashboard");
-    } catch (err: any) {
-      const message = err.response?.data?.message || "Login failed. Please try again.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    dispatch(addAdmin(user));
+
+    toast.success("Welcome, Admin!");
+    navigate("/admin/dashboard");
+  } catch (err: any) {
+    const message = err.response?.data?.message || "Login failed. Please try again.";
+    setError(message);
+    toast.error(message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted p-4 relative">

@@ -16,6 +16,9 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { toast } from "sonner";
+import { useDispatch } from "react-redux";
+import { addReceptionist } from "../../redux/slice/ReceptionistSlice";
+
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -26,35 +29,40 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const dispatch = useDispatch();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
 
-    try {
-      const res = await authAxiosInstance.post("/login", {
-        email,
-        password,
-        role: "receptionist",
-      });
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+  setIsLoading(true);
 
-      const { token, user } = res.data;
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+  try {
+    const res = await authAxiosInstance.post("/login", {
+      email,
+      password,
+      role: "receptionist",
+    });
 
-      toast.success("Login successful. Welcome back!");
+    const { token, user } = res.data;
 
-      navigate("/dashboard");
-    } catch (err: any) {
-      const message = err.response?.data?.message || "Login failed. Try again.";
-      setError(message);
+    // ✅ Store token only (user will be saved via Redux)
+    localStorage.setItem("token", token);
 
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // ✅ Save to Redux (and localStorage via slice)
+    dispatch(addReceptionist(user));
+
+    toast.success("Login successful. Welcome back!");
+    navigate("/dashboard");
+  } catch (err: any) {
+    const message = err.response?.data?.message || "Login failed. Try again.";
+    setError(message);
+    toast.error(message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background to-muted p-4 relative">

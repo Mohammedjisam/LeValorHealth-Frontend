@@ -30,40 +30,35 @@ const Signup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
 
-    if (!agreedToTerms) {
-      toast.error("You must agree to the terms and conditions");
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      toast.error("Passwords do not match");
-      return;
-    }
+  if (password !== confirmPassword) {
+    setError("Passwords do not match.");
+    toast.error("Passwords do not match");
+    return;
+  }
 
-    setError("");
+  setError("");
 
-    try {
-      await authAxiosInstance.post("/register", {
-        name,
-        email,
-        phone,
-        password,
-        role: "receptionist",
-      });
+  try {
+    await authAxiosInstance.post("/register", {
+      name,
+      email,
+      phone,
+      password,
+      role: "receptionist",
+    });
 
-      toast.success("Account created successfully! Please login.");
-      navigate("/");
-    } catch (err: any) {
-      const message = err.response?.data?.message || "Something went wrong. Try again.";
-      setError(message);
-      toast.error(message);
-    }
-  };
-
+    toast.success("Account created successfully! Please login.");
+    navigate("/");
+  } catch (err: any) {
+    const message = err.response?.data?.message || "Something went wrong. Try again.";
+    setError(message);
+    toast.error(message);
+  }
+};
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-background to-muted items-center justify-center p-4 relative">
       {/* Theme Toggle Button */}

@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useEffect, useState, useRef } from "react"
-import { Search, Clock, Filter, Camera, Upload, X, Sun, Moon } from "lucide-react"
+import { Search, Clock, Filter, Camera, Upload, X, Sun, Moon, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
 import { Input } from "../../components/ui/input"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent } from "../../components/ui/card"
@@ -35,6 +35,13 @@ interface PatientDetails extends Patient {
   renewalDate?: string
 }
 
+interface Pagination {
+  total: number
+  pages: number
+  page: number
+  limit: number
+}
+
 const PrescriptionScanner = () => {
   const { theme, setTheme } = useTheme()
   const [pendingPatients, setPendingPatients] = useState<Patient[]>([])
@@ -46,6 +53,20 @@ const PrescriptionScanner = () => {
   const [activeTab, setActiveTab] = useState("pending")
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery)
+
+  // Pagination states
+  const [pendingPagination, setPendingPagination] = useState<Pagination>({
+    total: 0,
+    pages: 0,
+    page: 1,
+    limit: 6,
+  })
+  const [allPagination, setAllPagination] = useState<Pagination>({
+    total: 0,
+    pages: 0,
+    page: 1,
+    limit: 6,
+  })
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -61,42 +82,55 @@ const PrescriptionScanner = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment")
 
   useEffect(() => {
-    const fetchPendingPrescriptions = async () => {
-      try {
-        setLoading(true)
-        const response = await scannerAxiosInstance.get("/pending-patients")
-
-        if (response.data.status) {
-          setPendingPatients(response.data.data)
-          setFilteredPendingPatients(response.data.data)
-          setPendingCount(response.data.data.length)
-        }
-      } catch (error) {
-        console.error("Error fetching pending prescriptions:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchPendingPrescriptions()
-  }, [])
+  }, [pendingPagination.page])
+
+  const fetchPendingPrescriptions = async () => {
+    try {
+      setLoading(true)
+      const response = await scannerAxiosInstance.get("/pending-patients", {
+        params: {
+          page: pendingPagination.page,
+          limit: pendingPagination.limit,
+        },
+      })
+
+      if (response.data.status) {
+        setPendingPatients(response.data.data)
+        setFilteredPendingPatients(response.data.data)
+        setPendingCount(response.data.pagination.total)
+        setPendingPagination(response.data.pagination)
+      }
+    } catch (error) {
+      console.error("Error fetching pending prescriptions:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (activeTab === "all") {
       fetchAllPatients()
     }
-  }, [activeTab])
+  }, [activeTab, allPagination.page])
 
   const fetchAllPatients = async () => {
     try {
       setLoading(true)
-      const response = await scannerAxiosInstance.get("/all-patients")
+      const response = await scannerAxiosInstance.get("/all-patients", {
+        params: {
+          page: allPagination.page,
+          limit: allPagination.limit,
+        },
+      })
 
       if (response.data.status) {
         setAllPatients(response.data.data)
         setFilteredAllPatients(response.data.data)
+        setAllPagination(response.data.pagination)
       }
     } catch (error) {
       console.error("Error fetching all patients:", error)
@@ -116,8 +150,11 @@ const PrescriptionScanner = () => {
   useEffect(() => {
     const fetchFilteredPatients = async () => {
       if (!debouncedQuery.trim()) {
-        setFilteredPendingPatients(pendingPatients)
-        setFilteredAllPatients(allPatients)
+        if (activeTab === "pending") {
+          fetchPendingPrescriptions()
+        } else {
+          fetchAllPatients()
+        }
         return
       }
 
@@ -170,6 +207,24 @@ const PrescriptionScanner = () => {
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     setSearchQuery("")
+    // Reset pagination when switching tabs
+    if (value === "pending") {
+      setPendingPagination({ ...pendingPagination, page: 1 })
+    } else {
+      setAllPagination({ ...allPagination, page: 1 })
+    }
+  }
+
+  const handlePageChange = (newPage: number) => {
+    if (activeTab === "pending") {
+      if (newPage > 0 && newPage <= pendingPagination.pages) {
+        setPendingPagination({ ...pendingPagination, page: newPage })
+      }
+    } else {
+      if (newPage > 0 && newPage <= allPagination.pages) {
+        setAllPagination({ ...allPagination, page: newPage })
+      }
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +238,8 @@ const PrescriptionScanner = () => {
 
   const handleOpenCamera = () => {
     setIsCameraOpen(true)
+    // Default to environment (back) camera
+    setFacingMode("environment")
   }
 
   useEffect(() => {
@@ -194,7 +251,9 @@ const PrescriptionScanner = () => {
           streamRef.current.getTracks().forEach((track) => track.stop())
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode },
+        })
         streamRef.current = stream
 
         videoRef.current.srcObject = stream
@@ -207,7 +266,11 @@ const PrescriptionScanner = () => {
     }
 
     startCamera()
-  }, [isCameraOpen])
+  }, [isCameraOpen, facingMode])
+
+  const handleSwitchCamera = () => {
+    setFacingMode(facingMode === "user" ? "environment" : "user")
+  }
 
   const handleCapturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -262,10 +325,9 @@ const PrescriptionScanner = () => {
       setIsUploading(true)
 
       const formData = new FormData()
-      formData.append("file", prescriptionImage) // ✅ correct field name for multer
+      formData.append("file", prescriptionImage)
       formData.append("patientId", selectedPatient._id)
 
-      // ✅ correct backend path
       const response = await scannerAxiosInstance.post("/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -275,19 +337,12 @@ const PrescriptionScanner = () => {
       if (response.data.status) {
         setUploadSuccess(true)
 
-        // Remove from pending
+        // Refresh data after successful upload
         if (activeTab === "pending") {
-          setPendingPatients((prev) => prev.filter((p) => p._id !== selectedPatient._id))
-          setFilteredPendingPatients((prev) => prev.filter((p) => p._id !== selectedPatient._id))
-          setPendingCount((prev) => prev - 1)
+          fetchPendingPrescriptions()
+        } else {
+          fetchAllPatients()
         }
-
-        // Update status in allPatients
-        const updatedAllPatients = allPatients.map((p) =>
-          p._id === selectedPatient._id ? { ...p, prescriptionAdded: "added" } : p,
-        )
-        setAllPatients(updatedAllPatients)
-        setFilteredAllPatients(updatedAllPatients)
 
         // Close modal and reset state
         setTimeout(() => {
@@ -295,7 +350,7 @@ const PrescriptionScanner = () => {
           setPrescriptionImage(null)
           setPreviewUrl(null)
           setUploadSuccess(false)
-        }, 2000)
+        }, 500)
       }
     } catch (error) {
       console.error("Error uploading prescription:", error)
@@ -319,45 +374,85 @@ const PrescriptionScanner = () => {
     setUploadSuccess(false)
   }
 
+  // Generate pagination numbers
+  const generatePaginationNumbers = () => {
+    const pagination = activeTab === "pending" ? pendingPagination : allPagination
+    const currentPage = pagination.page
+    const totalPages = pagination.pages
+
+    const pages = []
+
+    // Always show first page
+    pages.push(1)
+
+    // Calculate range around current page
+    const start = Math.max(2, currentPage - 1)
+    const end = Math.min(totalPages - 1, currentPage + 1)
+
+    // Add ellipsis after first page if needed
+    if (start > 2) {
+      pages.push("...")
+    }
+
+    // Add pages in range
+    for (let i = start; i <= end; i++) {
+      pages.push(i)
+    }
+
+    // Add ellipsis before last page if needed
+    if (end < totalPages - 1) {
+      pages.push("...")
+    }
+
+    // Add last page if there is more than one page
+    if (totalPages > 1) {
+      pages.push(totalPages)
+    }
+
+    return pages
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-2xl font-bold">Prescription Scanner</h1>
-          <p className="text-muted-foreground text-sm">Upload and manage patient prescriptions.</p>
+          <h1 className="text-xl font-bold sm:text-2xl">Prescription Scanner</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">Upload and manage patient prescriptions.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* Theme Toggle Button - positioned near the logo */}
           <Button
             variant="outline"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="rounded-full bg-background/90 backdrop-blur-sm hover:bg-background/70"
+            className="rounded-full bg-background/90 backdrop-blur-sm hover:bg-background/70 h-8 w-8 sm:h-9 sm:w-9"
             aria-label="Toggle theme"
           >
-            {theme === "dark" ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5 text-primary" />}
+            {theme === "dark" ? <Sun className="h-4 w-4 text-yellow-500" /> : <Moon className="h-4 w-4 text-primary" />}
           </Button>
 
           <img
             src="/MALABAR_ACADEMIC_CITY_HOSPITAL_LOGO_page-0001__1_-removebg-preview.png"
             alt="Malabar Academic City Hospital"
-            className="h-18 mt-5"
+            className="h-12 sm:h-16"
           />
         </div>
       </div>
 
       <Tabs defaultValue="pending" className="w-full" onValueChange={handleTabChange}>
-        <div className="flex justify-between items-center mb-4">
-          <TabsList className="bg-muted w-2000 h-14">
-            <TabsTrigger value="pending" className="data-[state=active]:bg-background">
-              <Clock className="h-4 w-4 mr-2" />
-              Pending Prescriptions
+        <div className="flex justify-between items-center mb-3">
+          <TabsList className="bg-muted w-full sm:w-auto h-10 sm:h-14">
+            <TabsTrigger value="pending" className="data-[state=active]:bg-background text-xs sm:text-sm">
+              <Clock className="h-3 w-3 mr-1 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden xs:inline">Pending</span> Prescriptions
               {pendingCount > 0 && (
-                <Badge className="ml-2 bg-amber-500 hover:bg-amber-500 text-white">{pendingCount}</Badge>
+                <Badge className="ml-1 sm:ml-2 bg-amber-500 hover:bg-amber-500 text-white text-xs">
+                  {pendingCount}
+                </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="all" className="data-[state=active]:bg-background">
-              <Filter className="h-4 w-4 mr-2" />
+            <TabsTrigger value="all" className="data-[state=active]:bg-background text-xs sm:text-sm">
+              <Filter className="h-3 w-3 mr-1 sm:h-4 sm:w-4 sm:mr-2" />
               All Prescriptions
             </TabsTrigger>
           </TabsList>
@@ -376,69 +471,155 @@ const PrescriptionScanner = () => {
 
                 <div className={loading ? "opacity-50" : ""}>
                   <div className="relative overflow-x-auto rounded-md">
-                    <div className="p-4 border-b border-border/50">
+                    <div className="p-3 border-b border-border/50">
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                         <Input
                           placeholder="Filter pending prescriptions..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 bg-muted/50 border-border"
+                          className="pl-8 sm:pl-10 bg-muted/50 border-border text-xs sm:text-sm h-8 sm:h-10"
                         />
                       </div>
                     </div>
 
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs uppercase bg-muted/50">
-                        <tr>
-                          <th className="px-6 py-3">OP Number</th>
-                          <th className="px-6 py-3">Name</th>
-                          <th className="px-6 py-3">Phone</th>
-                          <th className="px-6 py-3">Doctor</th>
-                          <th className="px-6 py-3">Date</th>
-                          <th className="px-6 py-3">Status</th>
-                          <th className="px-6 py-3 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredPendingPatients.length === 0 && !loading ? (
+                    {/* Desktop Table */}
+                    <div className="hidden md:block">
+                      <table className="w-full text-sm text-left">
+                        <thead className="text-xs uppercase bg-muted/50">
                           <tr>
-                            <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                              No pending prescriptions found
-                            </td>
+                            <th className="px-6 py-3">OP Number</th>
+                            <th className="px-6 py-3">Name</th>
+                            <th className="px-6 py-3">Phone</th>
+                            <th className="px-6 py-3">Doctor</th>
+                            <th className="px-6 py-3">Date</th>
+                            <th className="px-6 py-3">Status</th>
+                            <th className="px-6 py-3 text-center">Action</th>
                           </tr>
-                        ) : (
-                          filteredPendingPatients.map((patient) => (
-                            <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
-                              <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
-                              <td className="px-6 py-4">{patient.name}</td>
-                              <td className="px-6 py-4">{patient.phone}</td>
-                              <td className="px-6 py-4">
-                                {typeof patient.doctor === "object" ? patient.doctor.name : "—"}
-                              </td>
-                              <td className="px-6 py-4">{formatDate(patient.date)}</td>
-                              <td className="px-6 py-4">
-                                <Badge
-                                  variant="outline"
-                                  className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900"
-                                >
-                                  Pending
-                                </Badge>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <Button
-                                  onClick={() => handleSelect(patient._id)}
-                                  size="sm"
-className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-white dark:text-black dark:hover:bg-gray-200 font-medium rounded-md text-sm px-4 py-1.5"
-                                >
-                                  Select
-                                </Button>
+                        </thead>
+                        <tbody>
+                          {filteredPendingPatients.length === 0 && !loading ? (
+                            <tr>
+                              <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                                No pending prescriptions found
                               </td>
                             </tr>
-                          ))
+                          ) : (
+                            filteredPendingPatients.map((patient) => (
+                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
+                                <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
+                                <td className="px-6 py-4">{patient.name}</td>
+                                <td className="px-6 py-4">{patient.phone}</td>
+                                <td className="px-6 py-4">
+                                  {typeof patient.doctor === "object" ? patient.doctor.name : "—"}
+                                </td>
+                                <td className="px-6 py-4">{formatDate(patient.date)}</td>
+                                <td className="px-6 py-4">
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900"
+                                  >
+                                    Pending
+                                  </Badge>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <Button
+                                    onClick={() => handleSelect(patient._id)}
+                                    size="sm"
+                                    className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-blue-600 dark:hover:bg-blue-700 font-medium rounded-md text-sm px-4 py-1.5"
+                                  >
+                                    Select
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Table - Simplified */}
+                    <div className="block md:hidden">
+                      <table className="w-full text-xs sm:text-sm text-left">
+                        <thead className="text-xs uppercase bg-muted/50">
+                          <tr>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3">OP Number</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3">Name</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredPendingPatients.length === 0 && !loading ? (
+                            <tr>
+                              <td colSpan={3} className="px-3 py-8 sm:px-4 sm:py-12 text-center text-muted-foreground">
+                                No pending prescriptions found
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredPendingPatients.map((patient) => (
+                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
+                                <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium">{patient.opNumber}</td>
+                                <td className="px-3 py-2 sm:px-4 sm:py-3">{patient.name}</td>
+                                <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
+                                  <Button
+                                    onClick={() => handleSelect(patient._id)}
+                                    size="sm"
+                                    className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-blue-600 dark:hover:bg-blue-700 font-medium rounded-md text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1"
+                                  >
+                                    Select
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {pendingPagination.pages > 1 && (
+                      <div className="flex items-center justify-center space-x-2 p-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pendingPagination.page - 1)}
+                          disabled={pendingPagination.page === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          <span className="sr-only">Previous page</span>
+                        </Button>
+
+                        {generatePaginationNumbers().map((page, index) =>
+                          page === "..." ? (
+                            <span key={`ellipsis-${index}`} className="text-muted-foreground">
+                              ...
+                            </span>
+                          ) : (
+                            <Button
+                              key={`page-${page}`}
+                              variant={pendingPagination.page === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => typeof page === "number" && handlePageChange(page)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {page}
+                            </Button>
+                          ),
                         )}
-                      </tbody>
-                    </table>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pendingPagination.page + 1)}
+                          disabled={pendingPagination.page === pendingPagination.pages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                          <span className="sr-only">Next page</span>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -459,78 +640,164 @@ className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-white dark:text-blac
 
                 <div className={loading ? "opacity-50" : ""}>
                   <div className="relative overflow-x-auto rounded-md">
-                    <div className="p-4 border-b border-border/50">
+                    <div className="p-3 border-b border-border/50">
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                         <Input
                           placeholder="Filter all prescriptions..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 bg-muted/50 border-border"
+                          className="pl-8 sm:pl-10 bg-muted/50 border-border text-xs sm:text-sm h-8 sm:h-10"
                         />
                       </div>
                     </div>
 
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs uppercase bg-muted/50">
-                        <tr>
-                          <th className="px-6 py-3">OP Number</th>
-                          <th className="px-6 py-3">Name</th>
-                          <th className="px-6 py-3">Phone</th>
-                          <th className="px-6 py-3">Doctor</th>
-                          <th className="px-6 py-3">Date</th>
-                          <th className="px-6 py-3">Status</th>
-                          <th className="px-6 py-3 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredAllPatients.length === 0 && !loading ? (
+                    {/* Desktop Table */}
+                    <div className="hidden md:block">
+                      <table className="w-full text-sm text-left">
+                        <thead className="text-xs uppercase bg-muted/50">
                           <tr>
-                            <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                              No patients found
-                            </td>
+                            <th className="px-6 py-3">OP Number</th>
+                            <th className="px-6 py-3">Name</th>
+                            <th className="px-6 py-3">Phone</th>
+                            <th className="px-6 py-3">Doctor</th>
+                            <th className="px-6 py-3">Date</th>
+                            <th className="px-6 py-3">Status</th>
+                            <th className="px-6 py-3 text-center">Action</th>
                           </tr>
-                        ) : (
-                          filteredAllPatients.map((patient) => (
-                            <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
-                              <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
-                              <td className="px-6 py-4">{patient.name}</td>
-                              <td className="px-6 py-4">{patient.phone}</td>
-                              <td className="px-6 py-4">
-                                {typeof patient.doctor === "object" ? patient.doctor.name : "—"}
-                              </td>
-                              <td className="px-6 py-4">{formatDate(patient.date)}</td>
-                              <td className="px-6 py-4">
-                                {patient.prescriptionAdded === "pending" ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900"
-                                  >
-                                    Pending
-                                  </Badge>
-                                ) : (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900"
-                                  >
-                                    Added
-                                  </Badge>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <Button
-                                  onClick={() => handleSelect(patient._id)}
-                                  size="sm"
-                                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-sm px-4 py-1.5"
-                                >
-                                  Select
-                                </Button>
+                        </thead>
+                        <tbody>
+                          {filteredAllPatients.length === 0 && !loading ? (
+                            <tr>
+                              <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                                No patients found
                               </td>
                             </tr>
-                          ))
+                          ) : (
+                            filteredAllPatients.map((patient) => (
+                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
+                                <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
+                                <td className="px-6 py-4">{patient.name}</td>
+                                <td className="px-6 py-4">{patient.phone}</td>
+                                <td className="px-6 py-4">
+                                  {typeof patient.doctor === "object" ? patient.doctor.name : "—"}
+                                </td>
+                                <td className="px-6 py-4">{formatDate(patient.date)}</td>
+                                <td className="px-6 py-4">
+                                  {patient.prescriptionAdded === "pending" ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900"
+                                    >
+                                      Pending
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900"
+                                    >
+                                      Added
+                                    </Badge>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <Button
+                                    onClick={() => handleSelect(patient._id)}
+                                    size="sm"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-sm px-4 py-1.5"
+                                  >
+                                    Select
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Table - Simplified */}
+                    <div className="block md:hidden">
+                      <table className="w-full text-xs sm:text-sm text-left">
+                        <thead className="text-xs uppercase bg-muted/50">
+                          <tr>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3">OP Number</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3">Name</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredAllPatients.length === 0 && !loading ? (
+                            <tr>
+                              <td colSpan={3} className="px-3 py-8 sm:px-4 sm:py-12 text-center text-muted-foreground">
+                                No patients found
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredAllPatients.map((patient) => (
+                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
+                                <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium">{patient.opNumber}</td>
+                                <td className="px-3 py-2 sm:px-4 sm:py-3">{patient.name}</td>
+                                <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
+                                  <Button
+                                    onClick={() => handleSelect(patient._id)}
+                                    size="sm"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1"
+                                  >
+                                    Select
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {allPagination.pages > 1 && (
+                      <div className="flex items-center justify-center space-x-2 p-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(allPagination.page - 1)}
+                          disabled={allPagination.page === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          <span className="sr-only">Previous page</span>
+                        </Button>
+
+                        {generatePaginationNumbers().map((page, index) =>
+                          page === "..." ? (
+                            <span key={`ellipsis-${index}`} className="text-muted-foreground">
+                              ...
+                            </span>
+                          ) : (
+                            <Button
+                              key={`page-${page}`}
+                              variant={allPagination.page === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => typeof page === "number" && handlePageChange(page)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {page}
+                            </Button>
+                          ),
                         )}
-                      </tbody>
-                    </table>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(allPagination.page + 1)}
+                          disabled={allPagination.page === allPagination.pages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                          <span className="sr-only">Next page</span>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -606,6 +873,10 @@ className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-white dark:text-blac
                           <X className="h-4 w-4 mr-1" />
                           Close
                         </Button>
+                        {/* <Button onClick={handleSwitchCamera} variant="secondary" size="sm">
+                          <RefreshCw className="h-4 w-4 mr-1" />
+                          Switch Camera
+                        </Button> */}
                         <Button onClick={handleCapturePhoto} variant="default" size="sm">
                           <Camera className="h-4 w-4 mr-1" />
                           Capture
