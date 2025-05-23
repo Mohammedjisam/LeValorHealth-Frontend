@@ -12,6 +12,13 @@ import {
   Search,
   Sun,
   UserPlus,
+  UserCircle,
+  Home,
+  MapPin,
+  Phone,
+  Stethoscope,
+  Building2,
+  CreditCard,
 } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useTheme } from "../../components/theme-provider";
@@ -55,7 +62,7 @@ import {
 } from "../../components/ui/tabs";
 import PrescriptionPrint from "../../components/receptionist/PrescriptionPrint";
 import receptionistAxiosInstance from "../../services/receptionistAxiosInstance";
-import PatientSearch from '../receptionist/PatientSearch'
+import PatientSearch from "../receptionist/PatientSearch";
 
 // Define the doctor interface
 interface Doctor {
@@ -156,64 +163,67 @@ export default function PatientRegistrationPage() {
     }
   };
 
-const printPDF = async (patientId: string) => {
-  try {
-    const response = await receptionistAxiosInstance.get(
-      `/patients/${patientId}/print-prescription`,
-      { responseType: "blob" }
-    );
+  const printPDF = async (patientId: string) => {
+    try {
+      const response = await receptionistAxiosInstance.get(
+        `/patients/${patientId}/print-prescription`,
+        { responseType: "blob" }
+      );
 
-    const pdfBlob = new Blob([response.data], { type: "application/pdf" });
-    const url = window.URL.createObjectURL(pdfBlob);
-    const printWindow = window.open(url, "_blank");
+      const pdfBlob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(url, "_blank");
 
-    if (!printWindow) {
-      toast.error("Popup blocked. Please allow popups to print the prescription.");
+      if (!printWindow) {
+        toast.error(
+          "Popup blocked. Please allow popups to print the prescription."
+        );
+      }
+    } catch (error) {
+      console.error("Failed to fetch prescription PDF:", error);
+      toast.error("Failed to generate prescription.");
     }
-  } catch (error) {
-    console.error("Failed to fetch prescription PDF:", error);
-    toast.error("Failed to generate prescription.");
-  }
-};
+  };
 
+  const onSubmit = async (values: FormValues) => {
+    setLoading(true);
 
-const onSubmit = async (values: FormValues) => {
-  setLoading(true);
+    try {
+      const response = await receptionistAxiosInstance.post(
+        "/patients/add",
+        values
+      );
 
-  try {
-    const response = await receptionistAxiosInstance.post("/patients/add", values);
+      if (response.data.status && response.data.data) {
+        const patient = response.data.data;
+        setRegisteredPatient(patient);
 
-    if (response.data.status && response.data.data) {
-  const patient = response.data.data;
-  setRegisteredPatient(patient);
+        toast.success("Patient registered successfully");
 
-  toast.success("Patient registered successfully");
+        form.reset({
+          name: "",
+          sex: undefined,
+          age: undefined,
+          homeName: "",
+          place: "",
+          phone: "",
+          date: new Date(),
+          renewalDate: new Date(new Date().setDate(new Date().getDate() + 7)),
+          doctorId: "",
+          department: "",
+          consultationFees: 0,
+        });
 
-  form.reset({
-    name: "",
-    sex: undefined,
-    age: undefined,
-    homeName: "",
-    place: "",
-    phone: "",
-    date: new Date(),
-    renewalDate: new Date(new Date().setDate(new Date().getDate() + 7)),
-    doctorId: "",
-    department: "",
-    consultationFees: 0,
-  });
-
-  // 🔁 Print prescription
-  printPDF(patient._id);
-}
-  } 
-  catch (error) {
-    console.error("Failed to register patient:", error);
-    toast.error("Failed to register patient");
-  } finally {
-    setLoading(false);
-  }
-};
+        // 🔁 Print prescription
+        printPDF(patient._id);
+      }
+    } catch (error) {
+      console.error("Failed to register patient:", error);
+      toast.error("Failed to register patient");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (registeredPatient && printRef.current) {
@@ -300,7 +310,7 @@ const onSubmit = async (values: FormValues) => {
                     Enter patient details to register and create a new OP record
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <Form {...form}>
                     <form
                       onSubmit={form.handleSubmit(onSubmit)}
@@ -313,9 +323,16 @@ const onSubmit = async (values: FormValues) => {
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Patient Name</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <UserCircle className="h-4 w-4 text-blue-500" />
+                                Patient Name
+                              </FormLabel>
                               <FormControl>
-                                <Input placeholder="Full Name" {...field} />
+                                <Input
+                                  placeholder="Full Name"
+                                  {...field}
+                                  className="transition-all focus-visible:ring-blue-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -328,17 +345,33 @@ const onSubmit = async (values: FormValues) => {
                           name="sex"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Sex</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <svg
+                                  className="h-4 w-4 text-blue-500"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <circle cx="12" cy="8" r="7" />
+                                  <path d="M12 15v7" />
+                                  <path d="M9 18h6" />
+                                </svg>
+                                Sex
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="w-full">
+                                  <SelectTrigger className="w-full transition-all focus-visible:ring-blue-500">
                                     <SelectValue placeholder="Select gender" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                                   <SelectItem value="male">Male</SelectItem>
                                   <SelectItem value="female">Female</SelectItem>
                                   <SelectItem value="other">Other</SelectItem>
@@ -355,12 +388,28 @@ const onSubmit = async (values: FormValues) => {
                           name="age"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Age</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <svg
+                                  className="h-4 w-4 text-blue-500"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                  <circle cx="12" cy="7" r="4" />
+                                </svg>
+                                Age
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
                                   placeholder="Age"
                                   {...field}
+                                  className="transition-all focus-visible:ring-blue-500"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -376,9 +425,16 @@ const onSubmit = async (values: FormValues) => {
                           name="homeName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Home Name</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <Home className="h-4 w-4 text-blue-500" />
+                                Home Name
+                              </FormLabel>
                               <FormControl>
-                                <Input placeholder="Home name" {...field} />
+                                <Input
+                                  placeholder="Home name"
+                                  {...field}
+                                  className="transition-all focus-visible:ring-blue-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -391,9 +447,16 @@ const onSubmit = async (values: FormValues) => {
                           name="place"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Place</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-blue-500" />
+                                Place
+                              </FormLabel>
                               <FormControl>
-                                <Input placeholder="Place" {...field} />
+                                <Input
+                                  placeholder="Place"
+                                  {...field}
+                                  className="transition-all focus-visible:ring-blue-500"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -408,11 +471,15 @@ const onSubmit = async (values: FormValues) => {
                           name="phone"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Phone Number</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 text-blue-500" />
+                                Phone Number
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="Contact number"
                                   {...field}
+                                  className="transition-all focus-visible:ring-blue-500"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -426,14 +493,17 @@ const onSubmit = async (values: FormValues) => {
                           name="date"
                           render={({ field }) => (
                             <FormItem className="flex flex-col">
-                              <FormLabel>Date</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-blue-500" />
+                                Registration Date
+                              </FormLabel>
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <FormControl>
                                     <Button
                                       variant={"outline"}
                                       className={cn(
-                                        "w-full pl-3 text-left font-normal",
+                                        "w-full pl-3 text-left font-normal border transition-all focus-visible:ring-blue-500",
                                         !field.value && "text-muted-foreground"
                                       )}
                                     >
@@ -455,6 +525,7 @@ const onSubmit = async (values: FormValues) => {
                                     selected={field.value}
                                     onSelect={field.onChange}
                                     initialFocus
+                                    className="p-3 pointer-events-auto"
                                   />
                                 </PopoverContent>
                               </Popover>
@@ -469,14 +540,17 @@ const onSubmit = async (values: FormValues) => {
                           name="renewalDate"
                           render={({ field }) => (
                             <FormItem className="flex flex-col">
-                              <FormLabel>Renewal Date</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-blue-500" />
+                                Renewal Date
+                              </FormLabel>
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <FormControl>
                                     <Button
                                       variant={"outline"}
                                       className={cn(
-                                        "w-full pl-3 text-left font-normal",
+                                        "w-full pl-3 text-left font-normal border transition-all focus-visible:ring-blue-500",
                                         !field.value && "text-muted-foreground"
                                       )}
                                     >
@@ -498,6 +572,7 @@ const onSubmit = async (values: FormValues) => {
                                     selected={field.value}
                                     onSelect={field.onChange}
                                     initialFocus
+                                    className="p-3 pointer-events-auto"
                                   />
                                 </PopoverContent>
                               </Popover>
@@ -514,7 +589,10 @@ const onSubmit = async (values: FormValues) => {
                           name="doctorId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Doctor</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <Stethoscope className="h-4 w-4 text-blue-500" />
+                                Doctor
+                              </FormLabel>
                               <Select
                                 onValueChange={(value) => {
                                   field.onChange(value);
@@ -523,11 +601,11 @@ const onSubmit = async (values: FormValues) => {
                                 defaultValue={field.value}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="w-full">
+                                  <SelectTrigger className="w-full transition-all focus-visible:ring-blue-500">
                                     <SelectValue placeholder="Select doctor" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                                   {doctors.map((doctor) => (
                                     <SelectItem
                                       key={doctor._id}
@@ -549,12 +627,16 @@ const onSubmit = async (values: FormValues) => {
                           name="department"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Department</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-blue-500" />
+                                Department
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="Department"
                                   {...field}
                                   readOnly
+                                  className="bg-gray-50 dark:bg-gray-700"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -568,7 +650,10 @@ const onSubmit = async (values: FormValues) => {
                           name="consultationFees"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Consultation Fees</FormLabel>
+                              <FormLabel className="flex items-center gap-2">
+                                <CreditCard className="h-4 w-4 text-blue-500" />
+                                Consultation Fees
+                              </FormLabel>
                               <FormControl>
                                 <div className="relative">
                                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -577,7 +662,7 @@ const onSubmit = async (values: FormValues) => {
                                   <Input
                                     type="number"
                                     placeholder="Amount"
-                                    className="pl-7"
+                                    className="pl-7 bg-gray-50 dark:bg-gray-700"
                                     {...field}
                                     readOnly
                                   />
@@ -591,8 +676,15 @@ const onSubmit = async (values: FormValues) => {
 
                       <div className="flex justify-end space-x-2">
                         <Button
+                          type="button"
+                          variant="outline"
+                          className="border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
                           type="submit"
-                          className="bg-blue-500 hover:bg-blue-600"
+                          className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
                           disabled={loading}
                         >
                           {loading ? (
@@ -640,7 +732,7 @@ const onSubmit = async (values: FormValues) => {
                     Search Patient
                   </CardTitle>
                   <CardDescription className="dark:text-gray-400">
-                    Search for existing patient records by OP number, name or
+                    Search for existing patient records by register number, name or
                     phone number
                   </CardDescription>
                 </CardHeader>
@@ -677,7 +769,9 @@ const onSubmit = async (values: FormValues) => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Reg Number</p>
-<p className="font-medium">{registeredPatient.regNumber}</p>
+                      <p className="font-medium">
+                        {registeredPatient.regNumber}
+                      </p>
 
                       <p className="text-sm text-gray-600">OP Number</p>
                       <p className="font-medium">

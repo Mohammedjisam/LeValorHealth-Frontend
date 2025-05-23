@@ -185,7 +185,7 @@ const UpdatePatientModal = ({ patient, isOpen, onClose, onSuccess }: UpdatePatie
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2.5 bg-teal-500 hover:bg-teal-600 dark:bg-teal-600 dark:hover:bg-teal-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="px-4 py-2.5 bg-blue-500 hover:bg-teal-600 dark:bg-blue-600 dark:hover:bg-teal-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isSubmitting ? (
                 <>

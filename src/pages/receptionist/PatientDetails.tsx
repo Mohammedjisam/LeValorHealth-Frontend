@@ -176,25 +176,25 @@ const PatientDetails = () => {
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                   <h1 className="text-2xl font-bold">
-                    <span className="text-teal-500">Patient:</span>{" "}
+                    <span className="text-gray-700 dark:text-gray-300">Patient Name : </span>{" "}
                     {patient.name}
                   </h1>
                   
                 </div>
-                <p className="text-gray-500 dark:text-gray-400">
-                  Register Number: {patient.regNumber}
+                <p className="text-gray-700 dark:text-gray-300">
+                  <b>Register Number : </b> {patient.regNumber}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-4 mb-6">
               <button
-                onClick={() => setIsAppointmentModalOpen(true)}
-                className="flex items-center gap-2 bg-teal-500 hover:bg-teal-600 dark:bg-teal-600 dark:hover:bg-teal-700 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                <Plus size={18} />
-                <span>New Appointment</span>
-              </button>
+  onClick={() => setIsAppointmentModalOpen(true)}
+  className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+>
+  <Plus size={18} />
+  <span>New Appointment</span>
+</button>
 
               <button
                 onClick={() => setIsUpdateModalOpen(true)}

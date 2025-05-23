@@ -528,7 +528,7 @@ const PrescriptionScanner = () => {
   <div className="relative shadow-sm rounded-md">
     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
     <Input
-      placeholder="Search prescriptions by name, OP number, or phone..."
+      placeholder="Search prescriptions by name, reg-no or phone number"
       value={searchQuery}
       onChange={(e) => setSearchQuery(e.target.value)}
       className="pl-10 pr-4 py-2 h-10 text-sm rounded-md border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all duration-200"
@@ -743,7 +743,7 @@ const PrescriptionScanner = () => {
                       <div className="relative shadow-sm rounded-md">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
                         <Input
-                          placeholder="Search prescriptions by name, OP number, or phone..."
+      placeholder="Search prescriptions by name, reg-no or phone number"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="pl-10 pr-4 py-2 h-10 text-sm rounded-md border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all duration-200"

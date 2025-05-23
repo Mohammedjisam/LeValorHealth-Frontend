@@ -219,7 +219,7 @@ export default function NewAppointmentModal({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
+      <DialogContent className="sm:max-w-[600px] h-auto max-h-[95vh] dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
         <DialogHeader>
           <DialogTitle className="text-xl dark:text-gray-100">
             New Appointment
@@ -476,7 +476,7 @@ export default function NewAppointmentModal({
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-teal-500 hover:bg-teal-600 dark:bg-teal-600 dark:hover:bg-teal-700"
+                  className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white dark:text-white"
                 >
                   {isSubmitting ? (
                     <>

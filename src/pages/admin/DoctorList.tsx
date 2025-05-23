@@ -162,11 +162,17 @@ const DoctorList = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button onClick={() => handleEditDoctor(doctor)} className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                        </div>
+<div className="flex items-center space-x-2">
+  <button
+    onClick={() => handleEditDoctor(doctor)}
+    className="flex items-center border border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:text-white hover:bg-blue-600 dark:hover:bg-blue-500 px-3 py-1 rounded-md"
+  >
+    <PencilIcon className="h-3 w-3 mr-1" />
+    Edit
+  </button>
+</div>
+
+
                       </td>
                     </tr>
                   ))
