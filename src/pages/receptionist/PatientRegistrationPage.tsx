@@ -676,6 +676,9 @@ const onSubmit = async (values: FormValues) => {
                 <div className="border-t border-b border-gray-300 py-4 mb-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
+                      <p className="text-sm text-gray-600">Reg Number</p>
+<p className="font-medium">{registeredPatient.regNumber}</p>
+
                       <p className="text-sm text-gray-600">OP Number</p>
                       <p className="font-medium">
                         {registeredPatient.opNumber}

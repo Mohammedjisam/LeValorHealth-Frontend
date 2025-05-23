@@ -16,8 +16,8 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { toast } from "sonner";
-import { useDispatch } from "react-redux";
-import { addAdmin } from "../../redux/slice/AdminSlice";
+// import { useDispatch } from "react-redux";
+// import { addAdmin } from "../../redux/slice/AdminSlice";
 
 
 const AdminLogin: React.FC = () => {
@@ -29,7 +29,7 @@ const AdminLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -48,7 +48,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     // ✅ Store token
     localStorage.setItem("token", token);
 
-    dispatch(addAdmin(user));
+    // dispatch(addAdmin(user));
 
     toast.success("Welcome, Admin!");
     navigate("/admin/dashboard");

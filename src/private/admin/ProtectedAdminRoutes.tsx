@@ -1,0 +1,15 @@
+// import React from 'react';
+// import { Navigate } from 'react-router-dom';
+// import { useSelector } from 'react-redux';
+// import { RootState } from '../../redux/store';
+
+// interface Props {
+//   children: JSX.Element;
+// }
+
+// const ProtectedAdminRoutes: React.FC<Props> = ({ children }) => {
+//   const adminData = useSelector((state: RootState) => state.admin.adminData);
+//   return adminData ? children : <Navigate to="/admin/login" />;
+// };
+
+// export default ProtectedAdminRoutes;

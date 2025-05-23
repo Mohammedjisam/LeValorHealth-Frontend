@@ -16,8 +16,8 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { toast } from "sonner";
-import { useDispatch } from "react-redux";
-import { addReceptionist } from "../../redux/slice/ReceptionistSlice";
+// import { useDispatch } from "react-redux";
+// import { addReceptionist } from "../../redux/slice/ReceptionistSlice";
 
 
 const Login: React.FC = () => {
@@ -29,7 +29,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
 
 
 const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +50,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     localStorage.setItem("token", token);
 
     // ✅ Save to Redux (and localStorage via slice)
-    dispatch(addReceptionist(user));
+    // dispatch(addReceptionist(user));
 
     toast.success("Login successful. Welcome back!");
     navigate("/dashboard");

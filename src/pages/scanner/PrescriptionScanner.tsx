@@ -1,58 +1,84 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useEffect, useState, useRef } from "react"
-import { Search, Clock, Filter, Camera, Upload, X, Sun, Moon, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
-import { Input } from "../../components/ui/input"
-import { Button } from "../../components/ui/button"
-import { Card, CardContent } from "../../components/ui/card"
-import { Badge } from "../../components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "../../components/ui/dialog"
-import { format } from "date-fns"
-import { useTheme } from "../../components/theme-provider"
-import scannerAxiosInstance from "../../services/scannerAxiosInstance"
-import receptionistAxiosInstance from "../../services/receptionistAxiosInstance"
+import { useEffect, useState, useRef } from "react";
+import {
+  Search,
+  Clock,
+  Filter,
+  Camera,
+  Upload,
+  X,
+  Sun,
+  Moon,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { Input } from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent } from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../../components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "../../components/ui/dialog";
+import { format } from "date-fns";
+import { useTheme } from "../../components/theme-provider";
+import scannerAxiosInstance from "../../services/scannerAxiosInstance";
+import receptionistAxiosInstance from "../../services/receptionistAxiosInstance";
 
 interface Patient {
-  _id: string
-  opNumber: string
-  name: string
-  phone: string
-  place: string
-  doctor: { name: string } | string
-  date: string
-  prescriptionAdded: "added" | "pending"
+  _id: string;
+  regNumber: string;
+  name: string;
+  phone: string;
+  place: string;
+  doctor: { name: string } | string;
+  date: string;
+  prescriptionAdded: "added" | "pending";
 }
 
 interface PatientDetails extends Patient {
-  age?: number
-  sex?: string
-  homeName?: string
-  department?: string
-  consultationFees?: number
-  renewalDate?: string
+  age?: number;
+  sex?: string;
+  homeName?: string;
+  department?: string;
+  consultationFees?: number;
+  renewalDate?: string;
 }
 
 interface Pagination {
-  total: number
-  pages: number
-  page: number
-  limit: number
+  total: number;
+  pages: number;
+  page: number;
+  limit: number;
 }
 
 const PrescriptionScanner = () => {
-  const { theme, setTheme } = useTheme()
-  const [pendingPatients, setPendingPatients] = useState<Patient[]>([])
-  const [allPatients, setAllPatients] = useState<Patient[]>([])
-  const [filteredPendingPatients, setFilteredPendingPatients] = useState<Patient[]>([])
-  const [filteredAllPatients, setFilteredAllPatients] = useState<Patient[]>([])
-  const [pendingCount, setPendingCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("pending")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery)
+  const { theme, setTheme } = useTheme();
+  const [pendingPatients, setPendingPatients] = useState<Patient[]>([]);
+  const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const [filteredPendingPatients, setFilteredPendingPatients] = useState<
+    Patient[]
+  >([]);
+  const [filteredAllPatients, setFilteredAllPatients] = useState<Patient[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("pending");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
   // Pagination states
   const [pendingPagination, setPendingPagination] = useState<Pagination>({
@@ -60,364 +86,377 @@ const PrescriptionScanner = () => {
     pages: 0,
     page: 1,
     limit: 6,
-  })
+  });
   const [allPagination, setAllPagination] = useState<Pagination>({
     total: 0,
     pages: 0,
     page: 1,
     limit: 6,
-  })
+  });
 
   // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedPatient, setSelectedPatient] = useState<PatientDetails | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [prescriptionImage, setPrescriptionImage] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<PatientDetails | null>(
+    null
+  );
+  const [isUploading, setIsUploading] = useState(false);
+  const [prescriptionImage, setPrescriptionImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isCameraOpen, setIsCameraOpen] = useState(false)
-  const streamRef = useRef<MediaStream | null>(null)
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment")
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">(
+    "environment"
+  );
 
   useEffect(() => {
-    fetchPendingPrescriptions()
-  }, [pendingPagination.page])
+    fetchPendingPrescriptions();
+  }, [pendingPagination.page]);
 
   const fetchPendingPrescriptions = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const response = await scannerAxiosInstance.get("/pending-patients", {
         params: {
           page: pendingPagination.page,
           limit: pendingPagination.limit,
         },
-      })
+      });
 
       if (response.data.status) {
-        setPendingPatients(response.data.data)
-        setFilteredPendingPatients(response.data.data)
-        setPendingCount(response.data.pagination.total)
-        setPendingPagination(response.data.pagination)
+        setPendingPatients(response.data.data);
+        setFilteredPendingPatients(response.data.data);
+        setPendingCount(response.data.pagination.total);
+        setPendingPagination(response.data.pagination);
       }
     } catch (error) {
-      console.error("Error fetching pending prescriptions:", error)
+      console.error("Error fetching pending prescriptions:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (activeTab === "all") {
-      fetchAllPatients()
+      fetchAllPatients();
     }
-  }, [activeTab, allPagination.page])
+  }, [activeTab, allPagination.page]);
 
   const fetchAllPatients = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const response = await scannerAxiosInstance.get("/all-patients", {
         params: {
           page: allPagination.page,
           limit: allPagination.limit,
         },
-      })
+      });
 
       if (response.data.status) {
-        setAllPatients(response.data.data)
-        setFilteredAllPatients(response.data.data)
-        setAllPagination(response.data.pagination)
+        setAllPatients(response.data.data);
+        setFilteredAllPatients(response.data.data);
+        setAllPagination(response.data.pagination);
       }
     } catch (error) {
-      console.error("Error fetching all patients:", error)
+      console.error("Error fetching all patients:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      setDebouncedQuery(searchQuery)
-    }, 20)
+      setDebouncedQuery(searchQuery);
+    }, 20);
 
-    return () => clearTimeout(timeout) // cleanup
-  }, [searchQuery])
+    return () => clearTimeout(timeout); // cleanup
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchFilteredPatients = async () => {
       if (!debouncedQuery.trim()) {
         if (activeTab === "pending") {
-          fetchPendingPrescriptions()
+          fetchPendingPrescriptions();
         } else {
-          fetchAllPatients()
+          fetchAllPatients();
         }
-        return
+        return;
       }
 
       try {
-        setLoading(true)
+        setLoading(true);
         const response = await scannerAxiosInstance.get(`/search`, {
           params: { query: debouncedQuery },
-        })
+        });
 
         if (response.data.status) {
-          const filtered = response.data.data
+          const filtered = response.data.data;
 
           if (activeTab === "pending") {
-            const pendingOnly = filtered.filter((p: Patient) => p.prescriptionAdded === "pending")
-            setFilteredPendingPatients(pendingOnly)
+            const pendingOnly = filtered.filter(
+              (p: Patient) => p.prescriptionAdded === "pending"
+            );
+            setFilteredPendingPatients(pendingOnly);
           } else {
-            setFilteredAllPatients(filtered)
+            setFilteredAllPatients(filtered);
           }
         }
       } catch (error) {
-        console.error("Error filtering patients:", error)
+        console.error("Error filtering patients:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchFilteredPatients()
-  }, [debouncedQuery, activeTab])
+    fetchFilteredPatients();
+  }, [debouncedQuery, activeTab]);
 
   const handleSelect = async (patientId: string) => {
     try {
-      const response = await receptionistAxiosInstance.get(`/patients/${patientId}`)
+      const response = await receptionistAxiosInstance.get(
+        `/patients/${patientId}`
+      );
       if (response.data.status) {
-        setSelectedPatient(response.data.data)
-        setIsModalOpen(true)
+        setSelectedPatient(response.data.data);
+        setIsModalOpen(true);
       }
     } catch (error) {
-      console.error("Error fetching patient details:", error)
+      console.error("Error fetching patient details:", error);
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), "dd/MM/yyyy")
+      return format(new Date(dateString), "dd/MM/yyyy");
     } catch (error) {
-      return "Invalid date"
+      return "Invalid date";
     }
-  }
+  };
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    setSearchQuery("")
+    setActiveTab(value);
+    setSearchQuery("");
     // Reset pagination when switching tabs
     if (value === "pending") {
-      setPendingPagination({ ...pendingPagination, page: 1 })
+      setPendingPagination({ ...pendingPagination, page: 1 });
     } else {
-      setAllPagination({ ...allPagination, page: 1 })
+      setAllPagination({ ...allPagination, page: 1 });
     }
-  }
+  };
 
   const handlePageChange = (newPage: number) => {
     if (activeTab === "pending") {
       if (newPage > 0 && newPage <= pendingPagination.pages) {
-        setPendingPagination({ ...pendingPagination, page: newPage })
+        setPendingPagination({ ...pendingPagination, page: newPage });
       }
     } else {
       if (newPage > 0 && newPage <= allPagination.pages) {
-        setAllPagination({ ...allPagination, page: newPage })
+        setAllPagination({ ...allPagination, page: newPage });
       }
     }
-  }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setPrescriptionImage(file)
-      setPreviewUrl(URL.createObjectURL(file))
-      setIsCameraOpen(false)
+      const file = e.target.files[0];
+      setPrescriptionImage(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setIsCameraOpen(false);
     }
-  }
+  };
 
   const handleOpenCamera = () => {
-    setIsCameraOpen(true)
+    setIsCameraOpen(true);
     // Default to environment (back) camera
-    setFacingMode("environment")
-  }
+    setFacingMode("environment");
+  };
 
   useEffect(() => {
     const startCamera = async () => {
-      if (!isCameraOpen || !videoRef.current) return
+      if (!isCameraOpen || !videoRef.current) return;
 
       try {
         if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop())
+          streamRef.current.getTracks().forEach((track) => track.stop());
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: facingMode },
-        })
-        streamRef.current = stream
+        });
+        streamRef.current = stream;
 
-        videoRef.current.srcObject = stream
+        videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play()
-        }
+          videoRef.current?.play();
+        };
       } catch (error) {
-        console.error("Error accessing camera:", error)
+        console.error("Error accessing camera:", error);
       }
-    }
+    };
 
-    startCamera()
-  }, [isCameraOpen, facingMode])
+    startCamera();
+  }, [isCameraOpen, facingMode]);
 
   const handleSwitchCamera = () => {
-    setFacingMode(facingMode === "user" ? "environment" : "user")
-  }
+    setFacingMode(facingMode === "user" ? "environment" : "user");
+  };
 
   const handleCapturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current
-      const canvas = canvasRef.current
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
 
       // Set canvas dimensions to match video
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
       // Draw the current video frame on the canvas
-      const context = canvas.getContext("2d")
+      const context = canvas.getContext("2d");
       if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         // Convert canvas to blob
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              const file = new File([blob], "prescription.jpg", { type: "image/jpeg" })
-              setPrescriptionImage(file)
-              setPreviewUrl(URL.createObjectURL(blob))
+              const file = new File([blob], "prescription.jpg", {
+                type: "image/jpeg",
+              });
+              setPrescriptionImage(file);
+              setPreviewUrl(URL.createObjectURL(blob));
 
               // Stop the camera stream
               if (streamRef.current) {
-                streamRef.current.getTracks().forEach((track) => track.stop())
-                streamRef.current = null
+                streamRef.current.getTracks().forEach((track) => track.stop());
+                streamRef.current = null;
               }
 
-              setIsCameraOpen(false)
+              setIsCameraOpen(false);
             }
           },
           "image/jpeg",
-          0.95,
-        )
+          0.95
+        );
       }
     }
-  }
+  };
 
   const handleCloseCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
-    setIsCameraOpen(false)
-  }
+    setIsCameraOpen(false);
+  };
 
   const handleAddPrescription = async () => {
-    if (!prescriptionImage || !selectedPatient) return
+    if (!prescriptionImage || !selectedPatient) return;
 
     try {
-      setIsUploading(true)
+      setIsUploading(true);
 
-      const formData = new FormData()
-      formData.append("file", prescriptionImage)
-      formData.append("patientId", selectedPatient._id)
+      const formData = new FormData();
+      formData.append("file", prescriptionImage);
+      formData.append("patientId", selectedPatient._id);
 
       const response = await scannerAxiosInstance.post("/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      })
+      });
 
       if (response.data.status) {
-        setUploadSuccess(true)
+        setUploadSuccess(true);
 
         // Refresh data after successful upload
         if (activeTab === "pending") {
-          fetchPendingPrescriptions()
+          fetchPendingPrescriptions();
         } else {
-          fetchAllPatients()
+          fetchAllPatients();
         }
 
         // Close modal and reset state
         setTimeout(() => {
-          setIsModalOpen(false)
-          setPrescriptionImage(null)
-          setPreviewUrl(null)
-          setUploadSuccess(false)
-        }, 500)
+          setIsModalOpen(false);
+          setPrescriptionImage(null);
+          setPreviewUrl(null);
+          setUploadSuccess(false);
+        }, 500);
       }
     } catch (error) {
-      console.error("Error uploading prescription:", error)
+      console.error("Error uploading prescription:", error);
     } finally {
-      setIsUploading(false)
+      setIsUploading(false);
     }
-  }
+  };
 
   const handleModalClose = () => {
     // Clean up resources when modal closes
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
 
-    setIsModalOpen(false)
-    setSelectedPatient(null)
-    setPrescriptionImage(null)
-    setPreviewUrl(null)
-    setIsCameraOpen(false)
-    setUploadSuccess(false)
-  }
+    setIsModalOpen(false);
+    setSelectedPatient(null);
+    setPrescriptionImage(null);
+    setPreviewUrl(null);
+    setIsCameraOpen(false);
+    setUploadSuccess(false);
+  };
 
   // Generate pagination numbers
   const generatePaginationNumbers = () => {
-    const pagination = activeTab === "pending" ? pendingPagination : allPagination
-    const currentPage = pagination.page
-    const totalPages = pagination.pages
+    const pagination =
+      activeTab === "pending" ? pendingPagination : allPagination;
+    const currentPage = pagination.page;
+    const totalPages = pagination.pages;
 
-    const pages = []
+    const pages = [];
 
     // Always show first page
-    pages.push(1)
+    pages.push(1);
 
     // Calculate range around current page
-    const start = Math.max(2, currentPage - 1)
-    const end = Math.min(totalPages - 1, currentPage + 1)
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
 
     // Add ellipsis after first page if needed
     if (start > 2) {
-      pages.push("...")
+      pages.push("...");
     }
 
     // Add pages in range
     for (let i = start; i <= end; i++) {
-      pages.push(i)
+      pages.push(i);
     }
 
     // Add ellipsis before last page if needed
     if (end < totalPages - 1) {
-      pages.push("...")
+      pages.push("...");
     }
 
     // Add last page if there is more than one page
     if (totalPages > 1) {
-      pages.push(totalPages)
+      pages.push(totalPages);
     }
 
-    return pages
-  }
+    return pages;
+  };
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-4">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-0">
+      <div className="flex justify-between items-center mb-4 mt-5">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Prescription Scanner</h1>
-          <p className="text-xs text-muted-foreground sm:text-sm">Upload and manage patient prescriptions.</p>
+          <h1 className="text-xl font-bold sm:text-2xl">RxScan</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            Upload prescriptions.
+          </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Theme Toggle Button - positioned near the logo */}
@@ -428,7 +467,11 @@ const PrescriptionScanner = () => {
             className="rounded-full bg-background/90 backdrop-blur-sm hover:bg-background/70 h-8 w-8 sm:h-9 sm:w-9"
             aria-label="Toggle theme"
           >
-            {theme === "dark" ? <Sun className="h-4 w-4 text-yellow-500" /> : <Moon className="h-4 w-4 text-primary" />}
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4 text-yellow-500" />
+            ) : (
+              <Moon className="h-4 w-4 text-primary" />
+            )}
           </Button>
 
           <img
@@ -439,10 +482,17 @@ const PrescriptionScanner = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="pending" className="w-full" onValueChange={handleTabChange}>
+      <Tabs
+        defaultValue="pending"
+        className="w-full"
+        onValueChange={handleTabChange}
+      >
         <div className="flex justify-between items-center mb-3">
           <TabsList className="bg-muted w-full sm:w-auto h-10 sm:h-14">
-            <TabsTrigger value="pending" className="data-[state=active]:bg-background text-xs sm:text-sm">
+            <TabsTrigger
+              value="pending"
+              className="data-[state=active]:bg-background text-xs sm:text-sm"
+            >
               <Clock className="h-3 w-3 mr-1 sm:h-4 sm:w-4 sm:mr-2" />
               <span className="hidden xs:inline">Pending</span> Prescriptions
               {pendingCount > 0 && (
@@ -451,7 +501,10 @@ const PrescriptionScanner = () => {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="all" className="data-[state=active]:bg-background text-xs sm:text-sm">
+            <TabsTrigger
+              value="all"
+              className="data-[state=active]:bg-background text-xs sm:text-sm"
+            >
               <Filter className="h-3 w-3 mr-1 sm:h-4 sm:w-4 sm:mr-2" />
               All Prescriptions
             </TabsTrigger>
@@ -471,24 +524,24 @@ const PrescriptionScanner = () => {
 
                 <div className={loading ? "opacity-50" : ""}>
                   <div className="relative overflow-x-auto rounded-md">
-                    <div className="p-3 border-b border-border/50">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Filter pending prescriptions..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-8 sm:pl-10 bg-muted/50 border-border text-xs sm:text-sm h-8 sm:h-10"
-                        />
-                      </div>
-                    </div>
+                    <div className="pl-3 pr-3 mb-4 border-b border-border/50 bg-muted/20 rounded-t-md">
+  <div className="relative shadow-sm rounded-md">
+    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
+    <Input
+      placeholder="Search prescriptions by name, OP number, or phone..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      className="pl-10 pr-4 py-2 h-10 text-sm rounded-md border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all duration-200"
+    />
+  </div>
+</div>
 
                     {/* Desktop Table */}
                     <div className="hidden md:block">
                       <table className="w-full text-sm text-left">
                         <thead className="text-xs uppercase bg-muted/50">
                           <tr>
-                            <th className="px-6 py-3">OP Number</th>
+                            <th className="px-6 py-3">Reg-No</th>
                             <th className="px-6 py-3">Name</th>
                             <th className="px-6 py-3">Phone</th>
                             <th className="px-6 py-3">Doctor</th>
@@ -500,20 +553,32 @@ const PrescriptionScanner = () => {
                         <tbody>
                           {filteredPendingPatients.length === 0 && !loading ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                              <td
+                                colSpan={7}
+                                className="px-6 py-12 text-center text-muted-foreground"
+                              >
                                 No pending prescriptions found
                               </td>
                             </tr>
                           ) : (
                             filteredPendingPatients.map((patient) => (
-                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
-                                <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
+                              <tr
+                                key={patient._id}
+                                className="bg-background border-b hover:bg-muted/20"
+                              >
+                                <td className="px-6 py-4 font-medium">
+                                  {patient.regNumber}
+                                </td>
                                 <td className="px-6 py-4">{patient.name}</td>
                                 <td className="px-6 py-4">{patient.phone}</td>
                                 <td className="px-6 py-4">
-                                  {typeof patient.doctor === "object" ? patient.doctor.name : "—"}
+                                  {typeof patient.doctor === "object"
+                                    ? patient.doctor.name
+                                    : "—"}
                                 </td>
-                                <td className="px-6 py-4">{formatDate(patient.date)}</td>
+                                <td className="px-6 py-4">
+                                  {formatDate(patient.date)}
+                                </td>
                                 <td className="px-6 py-4">
                                   <Badge
                                     variant="outline"
@@ -539,27 +604,41 @@ const PrescriptionScanner = () => {
                     </div>
 
                     {/* Mobile Table - Simplified */}
-                    <div className="block md:hidden">
-                      <table className="w-full text-xs sm:text-sm text-left">
+                    <div className="block md:hidden ">
+                      <table className="w-full text-xs sm:text-sm text-left ">
                         <thead className="text-xs uppercase bg-muted/50">
                           <tr>
-                            <th className="px-3 py-2 sm:px-4 sm:py-3">OP Number</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3">
+                              Reg-No
+                            </th>
                             <th className="px-3 py-2 sm:px-4 sm:py-3">Name</th>
-                            <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">Action</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">
+                              Action
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredPendingPatients.length === 0 && !loading ? (
                             <tr>
-                              <td colSpan={3} className="px-3 py-8 sm:px-4 sm:py-12 text-center text-muted-foreground">
+                              <td
+                                colSpan={3}
+                                className="px-3 py-8 sm:px-4 sm:py-12 text-center text-muted-foreground"
+                              >
                                 No pending prescriptions found
                               </td>
                             </tr>
                           ) : (
                             filteredPendingPatients.map((patient) => (
-                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
-                                <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium">{patient.opNumber}</td>
-                                <td className="px-3 py-2 sm:px-4 sm:py-3">{patient.name}</td>
+                              <tr
+                                key={patient._id}
+                                className="bg-background border-b hover:bg-muted/20"
+                              >
+                                <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium">
+                                  {patient.regNumber}
+                                </td>
+                                <td className="px-3 py-2 sm:px-4 sm:py-3">
+                                  {patient.name}
+                                </td>
                                 <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
                                   <Button
                                     onClick={() => handleSelect(patient._id)}
@@ -582,9 +661,11 @@ const PrescriptionScanner = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handlePageChange(pendingPagination.page - 1)}
+                          onClick={() =>
+                            handlePageChange(pendingPagination.page - 1)
+                          }
                           disabled={pendingPagination.page === 1}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 text-blue-600 dark:text-white border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-600"
                         >
                           <ChevronLeft className="h-4 w-4" />
                           <span className="sr-only">Previous page</span>
@@ -592,28 +673,46 @@ const PrescriptionScanner = () => {
 
                         {generatePaginationNumbers().map((page, index) =>
                           page === "..." ? (
-                            <span key={`ellipsis-${index}`} className="text-muted-foreground">
+                            <span
+                              key={`ellipsis-${index}`}
+                              className="text-muted-foreground"
+                            >
                               ...
                             </span>
                           ) : (
                             <Button
                               key={`page-${page}`}
-                              variant={pendingPagination.page === page ? "default" : "outline"}
+                              variant={
+                                pendingPagination.page === page
+                                  ? "default"
+                                  : "outline"
+                              }
                               size="sm"
-                              onClick={() => typeof page === "number" && handlePageChange(page)}
-                              className="h-8 w-8 p-0"
+                              onClick={() =>
+                                typeof page === "number" &&
+                                handlePageChange(page)
+                              }
+                              className={`h-8 w-8 p-0 ${
+                                pendingPagination.page === page
+                                  ? "bg-blue-600 text-white"
+                                  : "text-blue-600 dark:text-white border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-600"
+                              }`}
                             >
                               {page}
                             </Button>
-                          ),
+                          )
                         )}
 
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handlePageChange(pendingPagination.page + 1)}
-                          disabled={pendingPagination.page === pendingPagination.pages}
-                          className="h-8 w-8 p-0"
+                          onClick={() =>
+                            handlePageChange(pendingPagination.page + 1)
+                          }
+                          disabled={
+                            pendingPagination.page === pendingPagination.pages
+                          }
+                          className="h-8 w-8 p-0 text-blue-600 dark:text-white border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-600"
                         >
                           <ChevronRight className="h-4 w-4" />
                           <span className="sr-only">Next page</span>
@@ -640,14 +739,14 @@ const PrescriptionScanner = () => {
 
                 <div className={loading ? "opacity-50" : ""}>
                   <div className="relative overflow-x-auto rounded-md">
-                    <div className="p-3 border-b border-border/50">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                    <div className="pl-3 pr-3 mb-4 border-b border-border/50 bg-muted/20 rounded-t-md">
+                      <div className="relative shadow-sm rounded-md">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
                         <Input
-                          placeholder="Filter all prescriptions..."
+                          placeholder="Search prescriptions by name, OP number, or phone..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-8 sm:pl-10 bg-muted/50 border-border text-xs sm:text-sm h-8 sm:h-10"
+                          className="pl-10 pr-4 py-2 h-10 text-sm rounded-md border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all duration-200"
                         />
                       </div>
                     </div>
@@ -657,7 +756,7 @@ const PrescriptionScanner = () => {
                       <table className="w-full text-sm text-left">
                         <thead className="text-xs uppercase bg-muted/50">
                           <tr>
-                            <th className="px-6 py-3">OP Number</th>
+                            <th className="px-6 py-3">Reg-No</th>
                             <th className="px-6 py-3">Name</th>
                             <th className="px-6 py-3">Phone</th>
                             <th className="px-6 py-3">Doctor</th>
@@ -669,20 +768,32 @@ const PrescriptionScanner = () => {
                         <tbody>
                           {filteredAllPatients.length === 0 && !loading ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                              <td
+                                colSpan={7}
+                                className="px-6 py-12 text-center text-muted-foreground"
+                              >
                                 No patients found
                               </td>
                             </tr>
                           ) : (
                             filteredAllPatients.map((patient) => (
-                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
-                                <td className="px-6 py-4 font-medium">{patient.opNumber}</td>
+                              <tr
+                                key={patient._id}
+                                className="bg-background border-b hover:bg-muted/20"
+                              >
+                                <td className="px-6 py-4 font-medium">
+                                  {patient.regNumber}
+                                </td>
                                 <td className="px-6 py-4">{patient.name}</td>
                                 <td className="px-6 py-4">{patient.phone}</td>
                                 <td className="px-6 py-4">
-                                  {typeof patient.doctor === "object" ? patient.doctor.name : "—"}
+                                  {typeof patient.doctor === "object"
+                                    ? patient.doctor.name
+                                    : "—"}
                                 </td>
-                                <td className="px-6 py-4">{formatDate(patient.date)}</td>
+                                <td className="px-6 py-4">
+                                  {formatDate(patient.date)}
+                                </td>
                                 <td className="px-6 py-4">
                                   {patient.prescriptionAdded === "pending" ? (
                                     <Badge
@@ -704,7 +815,7 @@ const PrescriptionScanner = () => {
                                   <Button
                                     onClick={() => handleSelect(patient._id)}
                                     size="sm"
-                                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-sm px-4 py-1.5"
+                                    className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-blue-600 dark:hover:bg-blue-700 font-medium rounded-md text-sm px-4 py-1.5"
                                   >
                                     Select
                                   </Button>
@@ -721,28 +832,42 @@ const PrescriptionScanner = () => {
                       <table className="w-full text-xs sm:text-sm text-left">
                         <thead className="text-xs uppercase bg-muted/50">
                           <tr>
-                            <th className="px-3 py-2 sm:px-4 sm:py-3">OP Number</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3">
+                              Reg-No
+                            </th>
                             <th className="px-3 py-2 sm:px-4 sm:py-3">Name</th>
-                            <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">Action</th>
+                            <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">
+                              Action
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredAllPatients.length === 0 && !loading ? (
                             <tr>
-                              <td colSpan={3} className="px-3 py-8 sm:px-4 sm:py-12 text-center text-muted-foreground">
+                              <td
+                                colSpan={3}
+                                className="px-3 py-8 sm:px-4 sm:py-12 text-center text-muted-foreground"
+                              >
                                 No patients found
                               </td>
                             </tr>
                           ) : (
                             filteredAllPatients.map((patient) => (
-                              <tr key={patient._id} className="bg-background border-b hover:bg-muted/20">
-                                <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium">{patient.opNumber}</td>
-                                <td className="px-3 py-2 sm:px-4 sm:py-3">{patient.name}</td>
+                              <tr
+                                key={patient._id}
+                                className="bg-background border-b hover:bg-muted/20"
+                              >
+                                <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium">
+                                  {patient.regNumber}
+                                </td>
+                                <td className="px-3 py-2 sm:px-4 sm:py-3">
+                                  {patient.name}
+                                </td>
                                 <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
                                   <Button
                                     onClick={() => handleSelect(patient._id)}
                                     size="sm"
-                                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1"
+                                    className="bg-blue-500 hover:bg-blue-600 text-white dark:bg-blue-600 dark:hover:bg-blue-700 font-medium rounded-md text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1"
                                   >
                                     Select
                                   </Button>
@@ -760,9 +885,11 @@ const PrescriptionScanner = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handlePageChange(allPagination.page - 1)}
+                          onClick={() =>
+                            handlePageChange(allPagination.page - 1)
+                          }
                           disabled={allPagination.page === 1}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 text-blue-600 dark:text-white border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-600"
                         >
                           <ChevronLeft className="h-4 w-4" />
                           <span className="sr-only">Previous page</span>
@@ -770,28 +897,44 @@ const PrescriptionScanner = () => {
 
                         {generatePaginationNumbers().map((page, index) =>
                           page === "..." ? (
-                            <span key={`ellipsis-${index}`} className="text-muted-foreground">
+                            <span
+                              key={`ellipsis-${index}`}
+                              className="text-muted-foreground"
+                            >
                               ...
                             </span>
                           ) : (
                             <Button
                               key={`page-${page}`}
-                              variant={allPagination.page === page ? "default" : "outline"}
+                              variant={
+                                allPagination.page === page
+                                  ? "default"
+                                  : "outline"
+                              }
                               size="sm"
-                              onClick={() => typeof page === "number" && handlePageChange(page)}
-                              className="h-8 w-8 p-0"
+                              onClick={() =>
+                                typeof page === "number" &&
+                                handlePageChange(page)
+                              }
+                              className={`h-8 w-8 p-0 ${
+                                allPagination.page === page
+                                  ? "bg-blue-600 text-white"
+                                  : "text-blue-600 dark:text-white border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-600"
+                              }`}
                             >
                               {page}
                             </Button>
-                          ),
+                          )
                         )}
 
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handlePageChange(allPagination.page + 1)}
+                          onClick={() =>
+                            handlePageChange(allPagination.page + 1)
+                          }
                           disabled={allPagination.page === allPagination.pages}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 text-blue-600 dark:text-white border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-600"
                         >
                           <ChevronRight className="h-4 w-4" />
                           <span className="sr-only">Next page</span>
@@ -820,8 +963,8 @@ const PrescriptionScanner = () => {
                 <h3 className="font-medium mb-2">Patient Details</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-sm text-muted-foreground">OP Number</p>
-                    <p className="font-medium">{selectedPatient.opNumber}</p>
+                    <p className="text-sm text-muted-foreground">Reg-No</p>
+                    <p className="font-medium">{selectedPatient.regNumber}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Name</p>
@@ -846,11 +989,19 @@ const PrescriptionScanner = () => {
               {!previewUrl ? (
                 <div className="flex flex-col space-y-3">
                   <div className="flex space-x-3">
-                    <Button onClick={handleOpenCamera} className="flex-1" variant="outline">
+                    <Button
+                      onClick={handleOpenCamera}
+                      className="flex-1"
+                      variant="outline"
+                    >
                       <Camera className="mr-2 h-4 w-4" />
                       Open Camera
                     </Button>
-                    <Button onClick={() => fileInputRef.current?.click()} className="flex-1" variant="outline">
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1"
+                      variant="outline"
+                    >
                       <Upload className="mr-2 h-4 w-4" />
                       Upload File
                     </Button>
@@ -866,10 +1017,20 @@ const PrescriptionScanner = () => {
                   {/* Camera View */}
                   {isCameraOpen && (
                     <div className="relative mt-4 border rounded-lg overflow-hidden">
-                      <video ref={videoRef} className="w-full h-64 object-cover bg-black" autoPlay playsInline muted />
+                      <video
+                        ref={videoRef}
+                        className="w-full h-64 object-cover bg-black"
+                        autoPlay
+                        playsInline
+                        muted
+                      />
                       <canvas ref={canvasRef} className="hidden" />
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/50 flex justify-between">
-                        <Button onClick={handleCloseCamera} variant="destructive" size="sm">
+                        <Button
+                          onClick={handleCloseCamera}
+                          variant="destructive"
+                          size="sm"
+                        >
                           <X className="h-4 w-4 mr-1" />
                           Close
                         </Button>
@@ -877,7 +1038,11 @@ const PrescriptionScanner = () => {
                           <RefreshCw className="h-4 w-4 mr-1" />
                           Switch Camera
                         </Button> */}
-                        <Button onClick={handleCapturePhoto} variant="default" size="sm">
+                        <Button
+                          onClick={handleCapturePhoto}
+                          variant="default"
+                          size="sm"
+                        >
                           <Camera className="h-4 w-4 mr-1" />
                           Capture
                         </Button>
@@ -895,8 +1060,8 @@ const PrescriptionScanner = () => {
                     />
                     <Button
                       onClick={() => {
-                        setPreviewUrl(null)
-                        setPrescriptionImage(null)
+                        setPreviewUrl(null);
+                        setPrescriptionImage(null);
                       }}
                       variant="destructive"
                       size="sm"
@@ -906,8 +1071,16 @@ const PrescriptionScanner = () => {
                     </Button>
                   </div>
 
-                  <Button onClick={handleAddPrescription} className="w-full" disabled={isUploading || uploadSuccess}>
-                    {isUploading ? "Uploading..." : uploadSuccess ? "Prescription Added!" : "Add Prescription"}
+                  <Button
+                    onClick={handleAddPrescription}
+                    className="w-full"
+                    disabled={isUploading || uploadSuccess}
+                  >
+                    {isUploading
+                      ? "Uploading..."
+                      : uploadSuccess
+                      ? "Prescription Added!"
+                      : "Add Prescription"}
                   </Button>
                 </div>
               )}
@@ -924,7 +1097,7 @@ const PrescriptionScanner = () => {
         </DialogContent>
       </Dialog>
     </div>
-  )
-}
+  );
+};
 
-export default PrescriptionScanner
+export default PrescriptionScanner;

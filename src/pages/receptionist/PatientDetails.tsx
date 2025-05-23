@@ -1,89 +1,136 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { ArrowLeft, Edit, FileText, User, Phone, Plus, ChevronDown, ChevronUp, Sun, Moon, Calendar, DollarSign } from 'lucide-react'
-import { toast } from "sonner"
-import type { Patient, MedicalRecord } from "../../types/patient"
-import UpdatePatientModal from "../../components/receptionist/UpdatePatientModal"
-import NewAppointmentModal from "../../components/receptionist/NewAppointmentModal"
-import receptionistAxiosInstance from "../../services/receptionistAxiosInstance"
-import { useTheme } from "../../components/theme-provider"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  Edit,
+  FileText,
+  User,
+  Phone,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  Sun,
+  Moon,
+  Calendar,
+  DollarSign,
+} from "lucide-react";
+import { toast } from "sonner";
+import type { Patient, MedicalRecord } from "../../types/patient";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "../../components/ui/dialog";
+
+import UpdatePatientModal from "../../components/receptionist/UpdatePatientModal";
+import NewAppointmentModal from "../../components/receptionist/NewAppointmentModal";
+import receptionistAxiosInstance from "../../services/receptionistAxiosInstance";
+import { useTheme } from "../../components/theme-provider";
 
 const PatientDetails = () => {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [patient, setPatient] = useState<Patient | null>(null)
-  const [medicalHistory, setMedicalHistory] = useState<MedicalRecord[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false)
-  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false)
-  const [showMedicalRecords, setShowMedicalRecords] = useState(true)
-  const { theme, setTheme } = useTheme()
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [medicalHistory, setMedicalHistory] = useState<MedicalRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [showMedicalRecords, setShowMedicalRecords] = useState(true);
+  const { theme, setTheme } = useTheme();
+  const [prescriptionImageUrl, setPrescriptionImageUrl] = useState<
+    string | null
+  >(null);
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  
 
   useEffect(() => {
     if (id) {
-      fetchPatientDetails(id)
+      fetchPatientDetails(id);
     }
-  }, [id])
+  }, [id]);
 
   const fetchPatientDetails = async (patientId: string) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const response = await receptionistAxiosInstance.get(`/patients/${patientId}`)
-      const patientData = response.data?.data
-      setPatient(patientData)
+      const response = await receptionistAxiosInstance.get(
+        `/patients/${patientId}`
+      );
+      const patientData = response.data?.data;
+      setPatient(patientData);
 
-      if (patientData?.opNumber) {
-        const historyResponse = await receptionistAxiosInstance.get(`/patients/history/${patientData.opNumber}`)
-        setMedicalHistory(historyResponse.data?.data || [])
+      if (patientData?.regNumber) {
+        const historyResponse = await receptionistAxiosInstance.get(
+          `/patients/history/${patientData.regNumber}`
+        );
+        setMedicalHistory(historyResponse.data?.data || []);
       }
     } catch (error) {
-      console.error(error)
-      toast.error("Failed to fetch patient details")
-      navigate("/patients")
+      console.error(error);
+      toast.error("Failed to fetch patient details");
+      navigate("/patients");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleUpdateSuccess = (updatedPatient: Patient) => {
-    setPatient(updatedPatient)
-    setIsUpdateModalOpen(false)
-    toast.success("Patient details updated successfully")
-  }
+    setPatient(updatedPatient);
+    setIsUpdateModalOpen(false);
+    toast.success("Patient details updated successfully");
+  };
 
   const handleAppointmentSuccess = (data: any) => {
     // Refresh medical history after adding a new appointment
-    if (patient?.opNumber) {
+    if (patient?.regNumber) {
       receptionistAxiosInstance
-        .get(`/patients/history/${patient.opNumber}`)
+        .get(`/patients/history/${patient.regNumber}`)
         .then((response) => {
-          setMedicalHistory(response.data?.data || [])
-          toast.success("New appointment added successfully")
+          setMedicalHistory(response.data?.data || []);
+          toast.success("New appointment added successfully");
         })
         .catch((error) => {
-          console.error("Failed to refresh medical history:", error)
-        })
+          console.error("Failed to refresh medical history:", error);
+        });
     }
-  }
+  };
+  const handleViewPrescription = async (patientId: string) => {
+    try {
+      const response = await receptionistAxiosInstance.get(
+        `/patients/${patientId}/prescription-url`
+      );
+      if (response.data.status && response.data.url) {
+        setPrescriptionImageUrl(response.data.url);
+        setIsPrescriptionModalOpen(true);
+      } else {
+        toast.error("Prescription not found.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load prescription.");
+    }
+  };
 
   const handleBackClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    navigate(-1) // Go back to previous page without reload
-  }
+    e.preventDefault();
+    navigate(-1); // Go back to previous page without reload
+  };
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
-  }
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500"></div>
       </div>
-    )
+    );
   }
 
   if (!patient) {
@@ -98,7 +145,7 @@ const PatientDetails = () => {
           Back to Patients
         </a>
       </div>
-    )
+    );
   }
 
   return (
@@ -129,15 +176,14 @@ const PatientDetails = () => {
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                   <h1 className="text-2xl font-bold">
-                    <span className="text-teal-500">Patient:</span> {patient.name}
+                    <span className="text-teal-500">Patient:</span>{" "}
+                    {patient.name}
                   </h1>
-                  {patient.prescriptionAdded === "added" && (
-                    <span className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 text-xs font-medium px-2.5 py-0.5 rounded w-fit">
-                      Prescription Added
-                    </span>
-                  )}
+                  
                 </div>
-                <p className="text-gray-500 dark:text-gray-400">OP Number: {patient.opNumber}</p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Register Number: {patient.regNumber}
+                </p>
               </div>
             </div>
 
@@ -169,15 +215,21 @@ const PatientDetails = () => {
 
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Age:</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Age:
+                    </span>
                     <span className="font-medium">{patient.age} years</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Sex:</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Sex:
+                    </span>
                     <span className="font-medium">{patient.sex}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">First Visited:</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      First Visited:
+                    </span>
                     <span className="font-medium">
                       {new Date(patient.date).toLocaleDateString("en-US", {
                         year: "numeric",
@@ -198,15 +250,21 @@ const PatientDetails = () => {
 
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Phone:</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Phone:
+                    </span>
                     <span className="font-medium">{patient.phone}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Home:</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Home:
+                    </span>
                     <span className="font-medium">{patient.homeName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500 dark:text-gray-400">Location:</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Location:
+                    </span>
                     <span className="font-medium">{patient.place}</span>
                   </div>
                 </div>
@@ -220,15 +278,25 @@ const PatientDetails = () => {
             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-t border-gray-200 dark:border-gray-700"
           >
             <FileText size={18} />
-            <span className="font-medium">{showMedicalRecords ? "Hide Medical Records" : "Show Medical Records"}</span>
-            {showMedicalRecords ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            <span className="font-medium">
+              {showMedicalRecords
+                ? "Hide Medical Records"
+                : "Show Medical Records"}
+            </span>
+            {showMedicalRecords ? (
+              <ChevronUp size={18} />
+            ) : (
+              <ChevronDown size={18} />
+            )}
           </button>
 
           {/* Medical Records Table */}
           {showMedicalRecords && (
             <div className="overflow-x-auto">
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200">Medical Records</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                  Medical Records
+                </h3>
               </div>
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
@@ -249,14 +317,17 @@ const PatientDetails = () => {
                       Renewal Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Status
+                      Prescription
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
                   {medicalHistory.length > 0 ? (
                     medicalHistory.map((record, index) => (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-600">
+                      <tr
+                        key={index}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-600"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {record.doctor?.name || "N/A"}
                         </td>
@@ -274,34 +345,37 @@ const PatientDetails = () => {
                           })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {new Date(record.renewalDate).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                          {new Date(record.renewalDate).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            }
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              record.prescriptionAdded === "added"
-                                ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400"
-                                : record.prescriptionAdded === "pending"
-                                  ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400"
-                                  : "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400"
-                            }`}
-                          >
-                            {record.prescriptionAdded === "added"
-                              ? "Completed"
-                              : record.prescriptionAdded === "pending"
-                                ? "Pending"
-                                : "Not Added"}
-                          </span>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {record.prescriptionAdded === "added" ? (
+                            <button
+                              onClick={() => handleViewPrescription(record._id)}
+                              className="text-blue-600 dark:text-blue-400 hover:underline text-xs font-medium"
+                            >
+                              View Prescription
+                            </button>
+                          ) : (
+                            <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 px-2 py-1 rounded-full text-xs">
+                              Pending
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                      <td
+                        colSpan={6}
+                        className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
+                      >
                         No previous medical records found
                       </td>
                     </tr>
@@ -330,8 +404,36 @@ const PatientDetails = () => {
         onClose={() => setIsAppointmentModalOpen(false)}
         onSuccess={handleAppointmentSuccess}
       />
-    </div>
-  )
-}
 
-export default PatientDetails
+ <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
+  <DialogContent className="max-w-3xl p-4">
+    <DialogHeader>
+      <DialogTitle>Prescription Image</DialogTitle>
+    </DialogHeader>
+
+    {prescriptionImageUrl ? (
+      <div className="w-full max-h-[70vh] overflow-auto rounded-md border p-2 bg-white dark:bg-gray-900">
+        <img
+          src={prescriptionImageUrl}
+          alt="Prescription"
+          className="w-full h-auto object-contain rounded"
+        />
+      </div>
+    ) : (
+      <p className="text-sm text-gray-500 dark:text-gray-400">No image found.</p>
+    )}
+
+    <DialogFooter className="pt-4">
+      <DialogClose asChild>
+        <button className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded">
+          Close
+        </button>
+      </DialogClose>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+    </div>
+  );
+};
+
+export default PatientDetails;

@@ -1,73 +1,69 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useEffect, useState } from "react"
-import { Search, Eye, Loader2 } from "lucide-react"
-import receptionistAxiosInstance from "../../services/receptionistAxiosInstance"
-import { Button } from "../../components/ui/button"
-import { Input } from "../../components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip"
-import { useNavigate } from "react-router-dom" 
-
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Search, Eye, Loader2 } from "lucide-react";
+import receptionistAxiosInstance from "../../services/receptionistAxiosInstance";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
+import { useNavigate } from "react-router-dom";
 
 interface Patient {
-  _id: string
-  opNumber: string
-  name: string
-  age: number
-  homeName?: string
-  place: string
-  phone: string
-  doctor: { name: string } | string
+  _id: string;
+  regNumber: string;
+  name: string;
+  age: number;
+  homeName?: string;
+  place: string;
+  phone: string;
+  doctor: { name: string } | string;
 }
 
 const PatientSearch: React.FC = () => {
-  const [query, setQuery] = useState<string>("")
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [loading, setLoading] = useState<boolean>(false)
-  const [debouncedQuery, setDebouncedQuery] = useState<string>("")
-  const navigate = useNavigate()
-
+  const [query, setQuery] = useState<string>("");
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [debouncedQuery, setDebouncedQuery] = useState<string>("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(query)
-    }, 20)
-    return () => clearTimeout(timer)
-  }, [query])
+      setDebouncedQuery(query);
+    }, 20);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     const fetchPatients = async () => {
       if (!debouncedQuery.trim()) {
-        setPatients([])
-        return
+        setPatients([]);
+        return;
       }
 
       try {
-        setLoading(true)
-        const res = await receptionistAxiosInstance.get(`/patients/search?query=${debouncedQuery}`)
+        setLoading(true);
+        const res = await receptionistAxiosInstance.get(`/patients/search?query=${debouncedQuery}`);
         if (res.data.status) {
-          setPatients(res.data.data)
+          setPatients(res.data.data);
         } else {
-          setPatients([])
+          setPatients([]);
         }
       } catch (err) {
-        console.error("Search error:", err)
-        setPatients([])
+        console.error("Search error:", err);
+        setPatients([]);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchPatients()
-  }, [debouncedQuery])
+    fetchPatients();
+  }, [debouncedQuery]);
 
-const handleViewDetails = (patientId: string) => {
-  navigate(`/viewdetails/${patientId}`)
-}
-
+  const handleViewDetails = (patientId: string) => {
+    navigate(`/viewdetails/${patientId}`);
+  };
 
   return (
     <Card className="w-full shadow-md border-0">
@@ -79,16 +75,13 @@ const handleViewDetails = (patientId: string) => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
             <Input
-              placeholder="Search by OP Number, Name or Phone"
+              placeholder="Search by Reg Number, Name or Phone"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus-visible:ring-2 focus-visible:ring-offset-0"
             />
           </div>
-          <Button
-            disabled
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition-colors"
-          >
+          <Button disabled className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition-colors">
             <Search className="mr-2 h-4 w-4" />
             Search
           </Button>
@@ -110,7 +103,7 @@ const handleViewDetails = (patientId: string) => {
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    OP Number
+                    Reg Number
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Name
@@ -139,7 +132,7 @@ const handleViewDetails = (patientId: string) => {
                 {patients.map((patient) => (
                   <tr key={patient._id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">
-                      {patient.opNumber}
+                      {patient.regNumber}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">{patient.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">{patient.age}</td>
@@ -153,14 +146,14 @@ const handleViewDetails = (patientId: string) => {
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                           <Button
-  variant="outline"
-  size="sm"
-  onClick={() => handleViewDetails(patient._id)}
-  className="text-sm font-medium text-blue-600 border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 dark:border-blue-400 dark:text-blue-400"
->
-  View Details
-</Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetails(patient._id)}
+                              className="text-sm font-medium text-blue-600 border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 dark:border-blue-400 dark:text-blue-400"
+                            >
+                              View Details
+                            </Button>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>View patient details</p>
@@ -177,12 +170,12 @@ const handleViewDetails = (patientId: string) => {
           <div className="text-center py-12 text-gray-400 dark:text-gray-500">
             <Search className="h-12 w-12 mx-auto mb-3 opacity-20" />
             <p className="text-lg font-medium">Start typing to search patients</p>
-            <p className="text-sm mt-1">Search by OP Number, Name or Phone</p>
+            <p className="text-sm mt-1">Search by Reg Number, Name or Phone</p>
           </div>
         )}
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-export default PatientSearch
+export default PatientSearch;

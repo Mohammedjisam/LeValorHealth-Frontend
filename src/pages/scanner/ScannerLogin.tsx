@@ -16,8 +16,8 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { toast } from "sonner";
-import { useDispatch } from "react-redux";
-import { addScanner } from "../../redux/slice/ScannerSlice";
+// import { useDispatch } from "react-redux";
+// import { addScanner } from "../../redux/slice/ScannerSlice";
 
 
 const Login: React.FC = () => {
@@ -29,7 +29,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
 
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -46,7 +46,7 @@ const Login: React.FC = () => {
 
       const { token, user } = res.data;
       localStorage.setItem("token", token);
-      dispatch(addScanner(user));
+      // dispatch(addScanner(user));
 
 
       toast.success("Login successful. Welcome!");
